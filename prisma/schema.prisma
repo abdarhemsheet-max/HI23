@@ -1,0 +1,364 @@
+// =====================================================================
+//  نظام حياتي — مخطط قاعدة البيانات المحلية (SQLite + Prisma)
+//  ملاحظات تصميم لتجنب الأخطاء (Red Screens):
+//  - SQLite لا يدعم enum ولا Json → نستخدم String مع تحقق صارم في الـ API
+//  - تواريخ "الأيام" (سجلات الإنجاز اليومي) تُخزن كنص YYYY-MM-DD
+//    لتفادي مشاكل المناطق الزمنية وضمان قيود unique الصحيحة
+//  - كل العلاقات معرفة بـ onDelete صريح (Cascade أو SetNull) حتى لا
+//    يفشل الحذف أو تبقى سجلات يتيمة
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------
+// 1) المالية (Finance & Wealth)
+// ------------------------------------------------------------------
+
+/// المحافظ: كاش / مصرف
+model Wallet {
+  id           String        @id @default(cuid())
+  name         String
+  type         String        @default("cash") // cash | bank
+  balance      Float         @default(0)
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+}
+
+/// الحركات المالية — الأرباح المعلقة = دخل بحالة pending
+model Transaction {
+  id          String   @id @default(cuid())
+  type        String // income | expense
+  status      String   @default("completed") // completed | pending
+  amount      Float
+  category    String   @default("عام")
+  description String?
+  date        DateTime @default(now())
+  wallet      Wallet?  @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  walletId    String?
+  createdAt   DateTime @default(now())
+}
+
+/// الديون: لي عند الآخرين / عليّ للآخرين
+model Debt {
+  id         String    @id @default(cuid())
+  personName String
+  direction  String // owed_to_me | i_owe
+  amount     Float
+  paidAmount Float     @default(0)
+  dueDate    DateTime?
+  notes      String?
+  isSettled  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+}
+
+/// الاشتراكات الشهرية / السنوية
+model Subscription {
+  id           String   @id @default(cuid())
+  name         String
+  amount       Float    @default(0)
+  billingCycle String   @default("monthly") // monthly | yearly
+  nextRenewal  DateTime
+  category     String   @default("أدوات")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+/// الأصول والممتلكات
+model Asset {
+  id             String    @id @default(cuid())
+  name           String
+  category       String    @default("عام")
+  estimatedValue Float     @default(0)
+  purchaseDate   DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+}
+
+/// المدخرات والأهداف المالية
+model SavingsGoal {
+  id            String    @id @default(cuid())
+  name          String
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  deadline      DateTime?
+  color         String    @default("#34d399")
+  createdAt     DateTime  @default(now())
+}
+
+// ------------------------------------------------------------------
+// 2) العادات والمهام (Habits & Tasks)
+// ------------------------------------------------------------------
+
+/// المهام: recurring تتجدد كل يوم / once ليوم محدد
+model DailyTask {
+  id        String    @id @default(cuid())
+  title     String
+  kind      String    @default("recurring") // recurring | once
+  date      String? // YYYY-MM-DD — لمهام once فقط
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  logs      TaskLog[]
+}
+
+/// سجل إنجاز المهام اليومية
+model TaskLog {
+  id     String    @id @default(cuid())
+  task   DailyTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+  date   String // YYYY-MM-DD
+
+  @@unique([taskId, date])
+}
+
+/// العادات (نظام Streaks مثل سناب شات)
+model Habit {
+  id        String     @id @default(cuid())
+  name      String
+  icon      String     @default("🔥")
+  color     String     @default("#34d399")
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  logs      HabitLog[]
+}
+
+/// سجل العادات — العداد يُحسب من تتابع الأيام؛ فقدان يوم يكسره
+model HabitLog {
+  id      String @id @default(cuid())
+  habit   Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  habitId String
+  date    String // YYYY-MM-DD
+
+  @@unique([habitId, date])
+}
+
+/// تركيز الأسبوع — هدف واحد صارم لكل أسبوع
+model WeeklyFocus {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  weekStart   String   @unique // YYYY-MM-DD (السبت)
+  doneDates   String   @default("[]") // JSON نصي: أيام الالتزام
+  createdAt   DateTime @default(now())
+}
+
+// ------------------------------------------------------------------
+// 3) الأعمال والمشاريع (Work & Projects)
+// ------------------------------------------------------------------
+
+/// جهات العمل / الشركات (لها هوية خاصة في التقارير)
+model WorkEntity {
+  id            String         @id @default(cuid())
+  name          String
+  brandColor    String         @default("#38bdf8")
+  contactInfo   String?
+  createdAt     DateTime       @default(now())
+  projects      Project[]
+  reports       Report[]
+  manualReports ManualReport[]
+}
+
+/// المشاريع:
+///  - finite:  لها startDate + endDate
+///  - ongoing: لا تتطلب endDate إطلاقاً؛ تُنهى بزر (استقالة/إنهاء عقد)
+///             فتصبح status=archived مع endedReason وتُحفظ في الأرشيف
+model Project {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  type        String      @default("finite") // finite | ongoing
+  status      String      @default("active") // active | done | archived
+  color       String      @default("#a78bfa")
+  startDate   DateTime    @default(now())
+  endDate     DateTime? // للمنتهية فقط — تبقى null دائماً للمستمرة
+  endedReason String? // استقالة / إنهاء العقد / اكتمال
+  endedAt     DateTime?
+  entity      WorkEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  entityId    String?
+  tasks       ProjectTask[]
+  reports     Report[]
+  createdAt   DateTime    @default(now())
+}
+
+/// المهام الفرعية للمشروع (تغذي شريط التقدم والتقارير)
+model ProjectTask {
+  id          String    @id @default(cuid())
+  title       String
+  isCompleted Boolean   @default(false)
+  completedAt DateTime? // يُسجَّل تلقائياً عند الإنجاز، ويعود null عند الإلغاء
+  // علامة صريحة لإدراج المهمة في تقرير الإنجاز الرسمي — لا تُفعَّل إلا لمهمة منجزة
+  // (القيد يُفرض في /api/projects/tasks/[id]/report وليس هنا لأن SQLite/Prisma
+  //  لا يدعمان CHECK متعدد الأعمدة عبر schema فقط)
+  includeInReport Boolean   @default(false)
+  sortOrder   Int       @default(0) // للترتيب اليدوي بالسحب والإفلات في تبويب «كافة المهام»
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  createdAt   DateTime  @default(now())
+
+  @@index([sortOrder])
+}
+
+// ------------------------------------------------------------------
+// 4) التقارير (Reports)
+// قاعدة صارمة: status لا يقبل إلا archived — لا مراجعة يدوية أبداً
+// ------------------------------------------------------------------
+model Report {
+  id            String      @id @default(cuid())
+  title         String
+  periodStart   DateTime
+  periodEnd     DateTime
+  tasksSnapshot String      @default("[]") // JSON نصي: لقطة المهام المسحوبة تلقائياً
+  status        String      @default("archived") // دائماً archived
+  archivedAt    DateTime    @default(now())
+  // التقرير مربوط بالمشروع (مصدر المهام) وجهة العمل (الهوية البصرية)
+  project       Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectId     String?
+  entity        WorkEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  entityId      String?
+  createdAt     DateTime    @default(now())
+}
+
+/// تقارير يدوية حرة (تقييمات هيكلية، تفتيش ميداني، ملخصات اجتماعات…) —
+/// منفصلة تماماً عن التقارير المؤتمتة: لا ترتبط بمشروع ولا تُسحب مهامها تلقائياً
+model ManualReport {
+  id         String      @id @default(cuid())
+  title      String
+  reportDate DateTime    @default(now())
+  content    String      @default("") // HTML من محرر TipTap
+  entity     WorkEntity? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  entityId   String?
+  // رابط غير ملزم (بلا علاقة Prisma فعلية) للمستند بعد تصديره PDF إلى الأرشيف
+  documentId String?
+  createdAt  DateTime    @default(now())
+}
+
+// ------------------------------------------------------------------
+// 5) أرشيف المستندات (Document Archive) — منفصل تماماً عن التقارير
+// ------------------------------------------------------------------
+model DocFolder {
+  id        String     @id @default(cuid())
+  name      String
+  color     String     @default("#38bdf8")
+  createdAt DateTime   @default(now())
+  documents Document[]
+}
+
+/// الملف الفعلي يُحفظ على القرص في مجلد uploads/ باسم fileName
+model Document {
+  id        String     @id @default(cuid())
+  name      String // الاسم الأصلي المعروض
+  fileName  String // الاسم المخزن على القرص (uuid + الامتداد)
+  mimeType  String     @default("application/octet-stream")
+  size      Int        @default(0)
+  folder    DocFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  folderId  String?
+  createdAt DateTime   @default(now())
+}
+
+// ------------------------------------------------------------------
+// 6) القرآن الكريم — 3 أنظمة وظيفية
+// ------------------------------------------------------------------
+
+/// أ) الحصون الخمسة: صف واحد لكل يوم مع 5 خانات
+model HosoonDay {
+  id    String  @id @default(cuid())
+  date  String  @unique // YYYY-MM-DD
+  fort1 Boolean @default(false) // القراءة / الاستماع
+  fort2 Boolean @default(false) // التحضير
+  fort3 Boolean @default(false) // الحفظ الجديد
+  fort4 Boolean @default(false) // المراجعة القريبة
+  fort5 Boolean @default(false) // المراجعة البعيدة
+  notes String?
+}
+
+/// ب) الطريقة الشنقيطية: جلسة تكرار مكثف بعداد
+model ShanqitiSession {
+  id          String   @id @default(cuid())
+  date        String // YYYY-MM-DD
+  verses      String // الآيات المراد حفظها
+  targetReps  Int      @default(50)
+  currentReps Int      @default(0)
+  linkingDone Boolean  @default(false) // ربط الآيات بما قبلها
+  reviewDone  Boolean  @default(false) // مراجعة محفوظ الأمس
+  isDone      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+/// ج) النظام المخصص: إدخال حر للسورة والآيات ونوع الورد
+model QuranEntry {
+  id          String   @id @default(cuid())
+  date        String // YYYY-MM-DD
+  surah       String
+  surahNumber Int? // 1-114 — لربط الإدخال بلوحة المصحف البصرية (اختياري)
+  fromAyah    Int?
+  toAyah      Int?
+  ayahCount   Int      @default(0)
+  type        String   @default("hifz") // hifz | murajaa
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+/// د) نظام المراجعة الذكية (SRS) — النظام يقرر موعد المراجعة القادمة تلقائياً
+/// بناءً على تقييم المستخدم لقوة حفظه (سهل/متوسط/صعب)، بنفس مبدأ Anki (SM-2)
+model SrsCard {
+  id           String         @id @default(cuid())
+  label        String // وصف المحفوظ: "البقرة 1-20" أو اسم السورة
+  surahNumber  Int? // 1-114 — ربط اختياري بلوحة المصحف
+  intervalDays Int            @default(1)
+  easeFactor   Float          @default(2.5)
+  dueDate      String // YYYY-MM-DD — تاريخ الاستحقاق القادم
+  reviewCount  Int            @default(0)
+  isActive     Boolean        @default(true) // إيقاف بطاقة دون حذف سجل مراجعاتها
+  createdAt    DateTime       @default(now())
+  logs         SrsReviewLog[]
+
+  @@index([dueDate])
+}
+
+/// سجل تقييمات المراجعة — يغذي الخريطة الحرارية وتاريخ الأداء
+model SrsReviewLog {
+  id        String   @id @default(cuid())
+  card      SrsCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  cardId    String
+  date      String // YYYY-MM-DD
+  rating    String // easy | medium | hard
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}
+
+// ------------------------------------------------------------------
+// 7) التعلم والقراءة (Courses & Books)
+// ------------------------------------------------------------------
+model LearningItem {
+  id         String   @id @default(cuid())
+  title      String
+  kind       String   @default("course") // course | book
+  category   String   @default("عام")
+  url        String? // رابط الكورس (يوتيوب أو أي منصة)
+  channel    String? // اسم القناة / المؤلف
+  totalUnits Int      @default(1) // إجمالي الدروس أو الصفحات (يُزامن تلقائياً مع الدروس)
+  doneUnits  Int      @default(0) // المنجز حتى الآن (يُزامن تلقائياً مع الدروس)
+  status     String   @default("in_progress") // in_progress | done | paused
+  notes      String?
+  createdAt  DateTime @default(now())
+  lessons    LearningLesson[]
+}
+
+/// دروس الكورس — قائمة تحقق درساً بدرس (تُلصق دفعة واحدة من قائمة تشغيل يوتيوب)
+model LearningLesson {
+  id        String       @id @default(cuid())
+  item      LearningItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId    String
+  title     String
+  url       String? // رابط الدرس المحدد (اختياري)
+  isDone    Boolean      @default(false)
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+}

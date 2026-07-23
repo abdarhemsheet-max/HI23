@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-night-900 text-slate-100 font-cairo antialiased min-h-screen;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 85% -10%, rgba(52, 211, 153, 0.12), transparent),
+    radial-gradient(ellipse 50% 40% at 10% 10%, rgba(167, 139, 250, 0.12), transparent),
+    radial-gradient(ellipse 50% 50% at 50% 110%, rgba(56, 189, 248, 0.08), transparent);
+  background-attachment: fixed;
+}
+
+@layer components {
+  /* ===== بطاقات زجاجية (Glassmorphism) ===== */
+  .glass {
+    @apply bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.35)];
+  }
+  .glass-hover {
+    @apply transition-all duration-300 hover:bg-white/[0.07] hover:border-white/[0.14] hover:-translate-y-0.5;
+  }
+  .glass-inset {
+    @apply bg-black/20 border border-white/[0.06] rounded-xl;
+  }
+
+  /* ===== حقول الإدخال ===== */
+  .input {
+    @apply w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-100
+      placeholder:text-slate-500 outline-none transition
+      focus:border-accent/50 focus:ring-2 focus:ring-accent/20;
+  }
+  .label {
+    @apply block text-xs font-semibold text-slate-400 mb-1.5;
+  }
+
+  /* ===== الأزرار ===== */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold
+      bg-gradient-to-l from-emerald-500 to-teal-400 text-night-900
+      shadow-[0_4px_20px_rgba(52,211,153,0.3)] transition hover:opacity-90 active:scale-[0.98]
+      disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+      bg-white/[0.06] border border-white/10 text-slate-200 transition
+      hover:bg-white/10 active:scale-[0.98];
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold
+      bg-rose-500/10 border border-rose-500/20 text-rose-300 transition hover:bg-rose-500/20;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold;
+  }
+
+  .section-title {
+    @apply text-lg font-black text-slate-100;
+  }
+}
+
+/* ===== شريط التمرير ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ===== محرر التقارير اليدوية (TipTap) ===== */
+.tiptap-content {
+  color: theme('colors.slate.100');
+  font-size: 0.9rem;
+  line-height: 1.9;
+}
+.tiptap-content h1 {
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin: 1rem 0 0.5rem;
+}
+.tiptap-content h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0.9rem 0 0.4rem;
+}
+.tiptap-content h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0.8rem 0 0.35rem;
+}
+.tiptap-content p {
+  margin: 0.4rem 0;
+}
+.tiptap-content ul,
+.tiptap-content ol {
+  padding-inline-start: 1.4rem;
+  margin: 0.4rem 0;
+}
+.tiptap-content blockquote {
+  border-inline-start: 3px solid theme('colors.emerald.500' / 40%);
+  padding-inline-start: 0.9rem;
+  color: theme('colors.slate.400');
+  margin: 0.6rem 0;
+}
+.tiptap-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+}
+.tiptap-content th,
+.tiptap-content td {
+  border: 1px solid theme('colors.white' / 12%);
+  padding: 0.4rem 0.6rem;
+  text-align: right;
+}
+.tiptap-content th {
+  background: theme('colors.white' / 6%);
+}
+.tiptap-content img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
+.tiptap-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: theme('colors.slate.600');
+  float: right;
+  pointer-events: none;
+  height: 0;
+}
+
+/* ===== الطباعة (تصدير PDF للتقارير) ===== */
+@media print {
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  .print-hidden {
+    display: none !important;
+  }
+  .print-area {
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
