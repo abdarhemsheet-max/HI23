@@ -33,32 +33,57 @@ export function buildStoredFileName(originalName: string): string {
 
 /** رفع ملف عبر Edge Function — يتولّى auth + upload للبكت مباشرة */
 export async function uploadToB2(file: File, storedName: string): Promise<B2UploadResult> {
+  return uploadToB2WithProgress(file, storedName);
+}
+
+/** رفع ملف مع تتبع التقدّم (XMLHttpRequest) — يُعيد النتيجة نفسها */
+export async function uploadToB2WithProgress(
+  file: File,
+  storedName: string,
+  onProgress?: (pct: number) => void
+): Promise<B2UploadResult> {
   assertConfigured();
 
-  const form = new FormData();
-  form.append('file', file);
-  form.append('fileName', storedName);
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('fileName', storedName);
 
-  const res = await fetch(`${FUNCTIONS_URL}/b2-upload`, {
-    method: 'POST',
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-    body: form,
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const result = JSON.parse(xhr.responseText);
+          if (!result.upload) return reject(new Error('استجابة غير متوقعة من خادم الرفع'));
+          resolve({
+            fileName: result.upload.fileName,
+            bzFileId: result.upload.fileId,
+            size: file.size,
+            mimeType: file.type || 'application/octet-stream',
+          });
+        } catch {
+          reject(new Error('استجابة غير صالحة من خادم الرفع'));
+        }
+      } else {
+        reject(new Error(xhr.responseText || 'فشل رفع الملف عبر الخادم'));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('فشل الاتصال بخادم الرفع'));
+    xhr.ontimeout = () => reject(new Error('انتهت مهلة الرفع'));
+
+    xhr.open('POST', `${FUNCTIONS_URL}/b2-upload`);
+    xhr.setRequestHeader('apikey', SUPABASE_ANON_KEY);
+    xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`);
+    xhr.send(form);
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || 'فشل رفع الملف عبر الخادم');
-  }
-
-  const result = await res.json();
-  if (!result.upload) throw new Error('استجابة غير متوقعة من خادم الرفع');
-
-  return {
-    fileName: result.upload.fileName,
-    bzFileId: result.upload.fileId,
-    size: file.size,
-    mimeType: file.type || 'application/octet-stream',
-  };
 }
 
 /** حذف ملف نهائياً من B2 */

@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { api, getCached, notify } from '@/frontend/api';
-import { getDocumentFileUrl } from '@/backend/services/documents';
+import { getDocumentFileUrl, uploadDocumentWithProgress } from '@/backend/services/documents';
 import { fmtDateShort, cn } from '@/shared/utils';
 import type { DocFolder, Document } from '@/shared/types';
 import GlassCard from '@/frontend/components/ui/GlassCard';
@@ -49,6 +49,7 @@ export default function DocumentsPage() {
   const [viewer, setViewer] = useState<Document | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null); // 0-100 أو null عند عدم الرفع
   const [staged, setStaged] = useState<StagedFile[] | null>(null); // ملفات بانتظار تأكيد الاسم/المجلد
   const fileInput = useRef<HTMLInputElement>(null);
   const { confirm, ConfirmDialog } = useConfirm();
@@ -92,10 +93,11 @@ export default function DocumentsPage() {
     if (fileInput.current) fileInput.current.value = '';
   };
 
-  /** رفع الملفات المجهّزة بأسمائها ومجلداتها المختارة — مباشرة إلى Backblaze B2 */
+  /** رفع الملفات المجهّزة بأسمائها ومجلداتها المختارة — مباشرة إلى Backblaze B2 مع شريط تقدّم */
   const confirmUpload = async () => {
     if (!staged || staged.length === 0) return;
     setUploading(true);
+    setProgress(0);
     let done = 0;
     for (const s of staged) {
       const form = new FormData();
@@ -103,9 +105,19 @@ export default function DocumentsPage() {
       const finalName = s.name.trim() || s.file.name;
       form.append('name', finalName);
       if (s.folderId) form.append('folderId', s.folderId);
-      const ok = await api('/api/documents', { method: 'POST', body: form });
-      if (ok) done++;
+      try {
+        await uploadDocumentWithProgress(form, (pct) => setProgress(pct));
+        done++;
+      } catch {
+        // الخطأ يُعرض تلقائياً عبر notify في api.ts، نكمل الباقي
+      }
     }
+    // إظهار 100% للحظة قبل الإغلاق
+    if (done === staged.length) {
+      setProgress(100);
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    setProgress(null);
     setUploading(false);
     setStaged(null);
     if (done > 0) notify(`رُفع ${done} ملف بنجاح 📁`, 'success');
@@ -425,13 +437,31 @@ export default function DocumentsPage() {
             <button className="btn-ghost flex-1" onClick={() => setStaged(null)} disabled={uploading}>
               إلغاء
             </button>
-            <button
-              className={cn('btn-primary flex-1', uploading && 'pointer-events-none opacity-60')}
-              onClick={confirmUpload}
-              disabled={uploading}
-            >
-              <Upload size={15} /> {uploading ? 'جارٍ الرفع…' : 'رفع الملفات'}
-            </button>
+            {uploading && progress !== null ? (
+              /* شريط تقدّم ديناميكي */
+              <div className={cn(
+                'flex-1 rounded-xl border p-1.5 transition-colors duration-300',
+                progress === 100
+                  ? 'border-orange-500/40 bg-orange-500/10'
+                  : 'border-white/10 bg-white/[0.04]'
+              )}>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-orange-500 transition-all duration-300 ease-out"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <span className="shrink-0 text-[11px] font-bold text-orange-300">
+                    {progress === 100 ? '✓ تم' : `${progress}%`}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <button className="btn-primary flex-1" onClick={confirmUpload}>
+                <Upload size={15} /> رفع الملفات
+              </button>
+            )}
           </div>
         </div>
       </Modal>
