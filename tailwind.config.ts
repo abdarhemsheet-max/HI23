@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        cairo: ['var(--font-cairo)', 'sans-serif'],
+        cairo: ['Cairo', 'sans-serif'],
       },
       colors: {
         night: {

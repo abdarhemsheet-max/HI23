@@ -2,6 +2,7 @@
 // أدوات تحقق صارمة — كل مدخل يمر من هنا قبل لمس قاعدة البيانات.
 // أي قيمة غير صالحة ترمي ValidationError برسالة عربية واضحة
 // تظهر للمستخدم كتنبيه لطيف بدلاً من انهيار الواجهة.
+// (منقولة كما هي من الإصدار السابق — دوال نقية بلا اعتماد على Node/Next)
 // ======================================================================
 
 export class ValidationError extends Error {
@@ -101,7 +102,7 @@ export function optDayStr(b: Body, key: string): string | null {
   return dayStr(b, key, 'التاريخ');
 }
 
-/** تاريخ إلزامي يُحوَّل إلى Date (لحقول DateTime في Prisma) */
+/** تاريخ إلزامي يُحوَّل إلى Date */
 export function reqDate(b: Body, key: string, label: string): Date {
   const v = b[key];
   if (typeof v !== 'string' || v === '') throw new ValidationError(`تاريخ «${label}» مطلوب`);

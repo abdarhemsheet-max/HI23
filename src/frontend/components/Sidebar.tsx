@@ -1,7 +1,4 @@
-'use client';
-
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Wallet,
@@ -13,8 +10,11 @@ import {
   GraduationCap,
   Sparkles,
   DatabaseBackup,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/shared/utils';
+import { signOut } from '@/backend/config/auth';
+import { downloadBackup } from '@/backend/services/backup';
 import GlobalTimer from '@/frontend/components/GlobalTimer';
 
 const NAV = [
@@ -29,7 +29,7 @@ const NAV = [
 ];
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
@@ -53,7 +53,7 @@ export default function Sidebar() {
             {NAV.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
-                href={href}
+                to={href}
                 className={cn(
                   'flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-all',
                   isActive(href)
@@ -69,15 +69,20 @@ export default function Sidebar() {
 
           <div className="mt-4">
             <GlobalTimer />
-            <a
-              href="/api/backup"
-              download
-              className="mb-2 flex items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-[11px] font-bold text-slate-400 transition hover:border-emerald-500/25 hover:text-emerald-300"
+            <button
+              onClick={() => downloadBackup()}
+              className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-[11px] font-bold text-slate-400 transition hover:border-emerald-500/25 hover:text-emerald-300"
             >
               <DatabaseBackup size={13} /> نسخة احتياطية فورية
-            </a>
+            </button>
+            <button
+              onClick={() => signOut()}
+              className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-[11px] font-bold text-slate-400 transition hover:border-rose-500/25 hover:text-rose-300"
+            >
+              <LogOut size={13} /> تسجيل الخروج
+            </button>
             <p className="px-2 text-center text-[10px] text-slate-600">
-              نظام محلي 100% — بياناتك على جهازك فقط 🔒
+              بياناتك مخزَّنة في Supabase — مرئية لك فقط 🔒
             </p>
           </div>
         </div>
@@ -88,7 +93,7 @@ export default function Sidebar() {
         {NAV.map(({ href, short, icon: Icon }) => (
           <Link
             key={href}
-            href={href}
+            to={href}
             className={cn(
               'flex flex-col items-center gap-0.5 rounded-lg px-1.5 py-1 text-[9px] font-bold transition',
               isActive(href) ? 'text-emerald-300' : 'text-slate-500'

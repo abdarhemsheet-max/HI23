@@ -1,13 +1,11 @@
 node_modules/
-.next/
-out/
-build/
-.env*.local
-.vercel
+dist/
+*.local
+.env
 *.tsbuildinfo
-next-env.d.ts
 .DS_Store
 
-# قاعدة البيانات المحلية والملفات المرفوعة
+# نسخة SQLite القديمة والملفات المرفوعة محلياً قبل الهجرة — مرجع/نسخة احتياطية فقط،
+# لا يقرأها التطبيق بعد الآن (البيانات انتقلت إلى Supabase + Backblaze B2)
 prisma/dev.db*
 uploads/
