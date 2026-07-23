@@ -37,7 +37,7 @@ serve(async (req) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, X-Client-Info',
   }
 
   if (req.method === 'OPTIONS') {
@@ -55,7 +55,7 @@ serve(async (req) => {
 
     const auth = await getAuthToken()
     if (!auth.apiUrl || !auth.authorizationToken || !auth.downloadUrl) {
-      return new Response(JSON.stringify({ error: auth.message || 'B2 authentication failed' }), {
+      return new Response(JSON.stringify({ error: `B2 authentication failed: ${auth.code || ''} ${auth.message || ''}`.trim() }), {
         status: 502,
         headers: { ...headers, 'Content-Type': 'application/json' },
       })
@@ -63,13 +63,19 @@ serve(async (req) => {
 
     const dlAuth = await getDownloadAuth(auth.apiUrl, auth.authorizationToken, filePath)
     if (!dlAuth.authorizationToken) {
-      return new Response(JSON.stringify({ error: 'B2 download authorization failed' }), {
-        status: 502,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      })
+      // نُعيد كود ورسالة B2 الفعليين (مثال شائع: "unauthorized" عندما لا يملك
+      // مفتاح B2 صلاحية shareFiles، أو عندما لا يطابق filePath بادئة المفتاح
+      // المقيَّدة) بدل رسالة عامة لا تكشف السبب الحقيقي.
+      return new Response(
+        JSON.stringify({
+          error: `B2 download authorization failed: ${dlAuth.code || ''} ${dlAuth.message || ''}`.trim(),
+          filePath,
+        }),
+        { status: 502, headers: { ...headers, 'Content-Type': 'application/json' } }
+      )
     }
 
-    const downloadUrl = `${auth.downloadUrl}/file/${B2_BUCKET_NAME}/${filePath}?Authorization=${dlAuth.authorizationToken}`
+    const downloadUrl = `${auth.downloadUrl}/file/${B2_BUCKET_NAME}/${encodeURIComponent(filePath)}?Authorization=${dlAuth.authorizationToken}`
 
     return new Response(JSON.stringify({ downloadUrl }), {
       status: 200,
