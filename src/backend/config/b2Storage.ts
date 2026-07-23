@@ -96,9 +96,14 @@ export async function getB2FileUrl(fileName: string): Promise<string> {
     body: JSON.stringify({ filePath: fileName }),
   });
 
-  if (!res.ok) throw new Error('تعذّر تجهيز رابط الملف');
-  const data = await res.json();
-  if (!data.downloadUrl) throw new Error('تعذّر تجهيز رابط الملف');
+  // نقرأ جسم الاستجابة دائماً — حتى عند الفشل — لأن b2-download يُعيد سبب
+  // الفشل الحقيقي القادم من B2 (مثل صلاحيات المفتاح أو عدم تطابق البادئة)
+  // بدل إخفائه خلف رسالة عامة لا تُشخَّص.
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.downloadUrl) {
+    console.error('[b2-download] فشل تجهيز الرابط:', fileName, data);
+    throw new Error(data?.error || 'تعذّر تجهيز رابط الملف');
+  }
 
   downloadUrlCache.set(fileName, { url: data.downloadUrl, expiresAt: Date.now() + 55 * 60 * 1000 });
   return data.downloadUrl;

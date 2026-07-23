@@ -18,7 +18,7 @@ const onForm =
     fn(new FormData(e.currentTarget));
   };
 
-export default function ReportsPage() {
+export default function ReportsPage({ standalone = true }: { standalone?: boolean }) {
   const [tab, setTab] = useState<Tab>('auto');
   const [reports, setReports] = useState<Report[]>(() => getCached<Report[]>('/api/crud/reports') ?? []);
   const [manualReports, setManualReports] = useState<ManualReport[]>(
@@ -124,11 +124,13 @@ export default function ReportsPage() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black">التقارير</h1>
-          <p className="text-sm text-slate-500">تقارير مؤتمتة من الأعمال، وتقارير يدوية حرة — لكل جهة عمل بهويتها الخاصة</p>
-        </div>
-        <div className="flex gap-2">
+        {standalone && (
+          <div>
+            <h1 className="text-2xl font-black">التقارير</h1>
+            <p className="text-sm text-slate-500">تقارير مؤتمتة من الأعمال، وتقارير يدوية حرة — لكل جهة عمل بهويتها الخاصة</p>
+          </div>
+        )}
+        <div className={cn('flex gap-2', standalone ? '' : 'mr-auto')}>
           <button className="btn-ghost" onClick={() => setModal('entity')}>
             <Building2 size={15} /> جهة عمل
           </button>

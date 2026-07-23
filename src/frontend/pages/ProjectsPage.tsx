@@ -13,6 +13,8 @@ import {
   RotateCcw,
   ListTodo,
   FileCheck2,
+  FileText,
+  LayoutGrid,
 } from 'lucide-react';
 import { api, getCached } from '@/frontend/api';
 import { fmtDateShort, todayStr, cn } from '@/shared/utils';
@@ -22,13 +24,21 @@ import Modal from '@/frontend/components/ui/Modal';
 import EmptyState from '@/frontend/components/ui/EmptyState';
 import ProgressBar from '@/frontend/components/ui/ProgressBar';
 import { useConfirm } from '@/frontend/hooks/useConfirm';
+import ReportsPage from './ReportsPage';
 
-// Lazy load: مكتبة السحب والإفلات ثقيلة — تُحمّل فقط عند فتح تبويب «كافة المهام»
+// Lazy load: مكتبة السحب والإفلات ثقيلة — تُحمّل فقط عند فتح تبويب المهام
 const SortableTasks = lazy(() => import('@/frontend/components/SortableTasks'));
 
 const COLORS = ['#a78bfa', '#38bdf8', '#34d399', '#fbbf24', '#fb7185', '#f472b6', '#22d3ee'];
 
-type Filter = 'active' | 'finite' | 'ongoing' | 'archived' | 'all-tasks';
+type WorkTab = 'projects' | 'tasks' | 'reports';
+type Filter = 'active' | 'finite' | 'ongoing' | 'archived';
+
+const WORK_TABS: { id: WorkTab; label: string; icon: React.ElementType }[] = [
+  { id: 'projects', label: 'المشاريع', icon: LayoutGrid },
+  { id: 'tasks', label: 'المهام', icon: ListTodo },
+  { id: 'reports', label: 'التقارير', icon: FileText },
+];
 
 const onForm =
   (fn: (f: FormData) => void) => (e: React.FormEvent<HTMLFormElement>) => {
@@ -37,6 +47,7 @@ const onForm =
   };
 
 export default function ProjectsPage() {
+  const [tab, setTab] = useState<WorkTab>('projects');
   const [projects, setProjects] = useState<Project[]>(() => getCached<Project[]>('/api/crud/projects') ?? []);
   const [entities, setEntities] = useState<WorkEntity[]>(() => getCached<WorkEntity[]>('/api/crud/entities') ?? []);
   const [filter, setFilter] = useState<Filter>('active');
@@ -250,66 +261,71 @@ export default function ProjectsPage() {
     { id: 'finite', label: 'منتهية المدة ⏱' },
     { id: 'ongoing', label: 'مستمرة ∞' },
     { id: 'archived', label: 'الأرشيف 📦' },
-    { id: 'all-tasks', label: 'كافة المهام 📋' },
   ];
 
   return (
     <div className="flex flex-col gap-6">
+      {/* ===== شريط التبويبات العام ===== */}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black">الأعمال والمشاريع</h1>
           <p className="text-sm text-slate-500">مشاريع منتهية المدة وتعاقدات مستمرة — بمهام فرعية وتقدم واضح</p>
         </div>
-        <button className="btn-primary" onClick={() => { setNewType('finite'); setModal('project'); }}>
-          <Plus size={16} /> مشروع جديد
-        </button>
+        {tab === 'projects' && (
+          <button className="btn-primary" onClick={() => { setNewType('finite'); setModal('project'); }}>
+            <Plus size={16} /> مشروع جديد
+          </button>
+        )}
       </header>
 
-      <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={cn(
-              'rounded-xl px-4 py-2 text-xs font-bold transition',
-              filter === f.id
-                ? 'bg-gradient-to-l from-emerald-500/25 to-teal-500/10 text-emerald-300 border border-emerald-500/25'
-                : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08]'
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* شريط التبويبات — قابل للتمرير على الجوال */}
+      <div className="sticky top-0 z-20 -mx-4 px-4 pb-1 backdrop-blur-xl bg-night-900/70 border-b border-white/[0.06]">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar py-3">
+          {WORK_TABS.map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  'shrink-0 whitespace-nowrap rounded-xl px-5 py-2.5 text-sm font-bold transition flex items-center gap-2',
+                  tab === t.id
+                    ? 'bg-gradient-to-l from-emerald-500/25 to-teal-500/10 text-emerald-300 border border-emerald-500/25 shadow-[0_0_20px_rgba(52,211,153,0.08)]'
+                    : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08] hover:text-slate-200'
+                )}
+              >
+                <Icon size={16} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* ===== تبويب كافة المهام (سحب وإفلات) ===== */}
-      {filter === 'all-tasks' ? (
-        <GlassCard>
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="section-title">📋 كافة المهام</h3>
-              <p className="text-[11px] text-slate-500">
-                مهام كل المشاريع النشطة في مكان واحد — اسحب <span className="text-slate-400">⠿</span> لإعادة الترتيب حسب الأولوية
-              </p>
-            </div>
-            <span className="chip bg-white/[0.06] text-slate-400">
-              {activeTaskList.filter((t) => !t.isCompleted).length} متبقية
-            </span>
+      {/* ============================================================ */}
+      {/* تبويب المشاريع */}
+      {/* ============================================================ */}
+      {tab === 'projects' && (
+        <>
+          {/* فلاتر */}
+          <div className="flex flex-wrap gap-2">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={cn(
+                  'rounded-xl px-4 py-2 text-xs font-bold transition',
+                  filter === f.id
+                    ? 'bg-gradient-to-l from-emerald-500/25 to-teal-500/10 text-emerald-300 border border-emerald-500/25'
+                    : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08]'
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
-          {activeTaskList.length === 0 ? (
-            <EmptyState icon={ListTodo} title="لا مهام بعد" hint="أضف مهاماً داخل مشاريعك النشطة لتظهر هنا" />
-          ) : (
-            <Suspense fallback={<p className="py-8 text-center text-xs text-slate-500">جارٍ تحميل قائمة المهام…</p>}>
-              <SortableTasks
-                tasks={activeTaskList}
-                onReorder={reorderAll}
-                onToggle={toggleAllTask}
-                onDelete={deleteAllTask}
-              />
-            </Suspense>
-          )}
-        </GlassCard>
-      ) : filtered.length === 0 ? (
+
+          {filtered.length === 0 ? (
         <GlassCard>
           <EmptyState icon={Briefcase} title="لا مشاريع هنا" hint="أنشئ مشروعاً منتهي المدة أو تعاقداً مستمراً" />
         </GlassCard>
@@ -580,6 +596,48 @@ export default function ProjectsPage() {
           <button className="btn-primary">إنشاء المشروع</button>
         </form>
       </Modal>
+
+      <ConfirmDialog />
+        </>
+      )}
+
+      {/* ============================================================ */}
+      {/* تبويب المهام (سحب وإفلات) */}
+      {/* ============================================================ */}
+      {tab === 'tasks' && (
+        <GlassCard>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="section-title">📋 كافة المهام</h3>
+              <p className="text-[11px] text-slate-500">
+                مهام كل المشاريع النشطة في مكان واحد — اسحب <span className="text-slate-400">⠿</span> لإعادة الترتيب حسب الأولوية
+              </p>
+            </div>
+            <span className="chip bg-white/[0.06] text-slate-400">
+              {activeTaskList.filter((t) => !t.isCompleted).length} متبقية
+            </span>
+          </div>
+          {activeTaskList.length === 0 ? (
+            <EmptyState icon={ListTodo} title="لا مهام بعد" hint="أضف مهاماً داخل مشاريعك النشطة لتظهر هنا" />
+          ) : (
+            <Suspense fallback={<p className="py-8 text-center text-xs text-slate-500">جارٍ تحميل قائمة المهام…</p>}>
+              <SortableTasks
+                tasks={activeTaskList}
+                onReorder={reorderAll}
+                onToggle={toggleAllTask}
+                onDelete={deleteAllTask}
+              />
+            </Suspense>
+          )}
+        </GlassCard>
+      )}
+
+      {/* ============================================================ */}
+      {/* تبويب التقارير */}
+      {/* ============================================================ */}
+      {tab === 'reports' && (
+        <ReportsPage standalone={false} />
+      )}
 
       <ConfirmDialog />
     </div>

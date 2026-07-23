@@ -63,6 +63,15 @@ body {
   }
 }
 
+/* إخفاء شريط التمرير مع بقاء التمرير يعمل (لأشرطة التبويبات) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ===== شريط التمرير ===== */
 ::-webkit-scrollbar {
   width: 8px;

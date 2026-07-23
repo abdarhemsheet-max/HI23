@@ -160,8 +160,8 @@ export default function DocumentsPage() {
     try {
       const url = await getDocumentFileUrl(d.id);
       setViewerUrl(url);
-    } catch {
-      notify('تعذّر تجهيز رابط الملف', 'error');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'تعذّر تجهيز رابط الملف', 'error');
       setViewer(null);
     }
   };
@@ -180,8 +180,8 @@ export default function DocumentsPage() {
       a.target = '_blank';
       a.rel = 'noreferrer';
       a.click();
-    } catch {
-      notify('تعذّر تجهيز رابط التنزيل', 'error');
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'تعذّر تجهيز رابط التنزيل', 'error');
     }
   };
 

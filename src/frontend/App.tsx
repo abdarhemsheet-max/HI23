@@ -8,7 +8,6 @@ import HomePage from './pages/HomePage';
 import FinancePage from './pages/FinancePage';
 import HabitsPage from './pages/HabitsPage';
 import ProjectsPage from './pages/ProjectsPage';
-import ReportsPage from './pages/ReportsPage';
 import ReportViewPage from './pages/ReportViewPage';
 import ManualReportEditorPage from './pages/ManualReportEditorPage';
 import DocumentsPage from './pages/DocumentsPage';
@@ -29,7 +28,6 @@ export default function App() {
               <Route path="/finance" element={<FinancePage />} />
               <Route path="/habits" element={<HabitsPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
               <Route path="/reports/manual/:id" element={<ManualReportEditorPage />} />
               <Route path="/reports/:id" element={<ReportViewPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
