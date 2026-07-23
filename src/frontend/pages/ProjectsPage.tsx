@@ -250,10 +250,10 @@ export default function ProjectsPage() {
     load();
   };
 
-  // كافة المهام غير المنجزة من المشاريع النشطة (المرتبة يدوياً) + المنجزة حديثاً
+  // كافة المهام غير المنجزة فقط من المشاريع النشطة — المنجزة تختفي فوراً من هذه اللوحة
   const activeTaskList = allTasks.filter((t) => {
     const proj = projects.find((p) => p.id === t.projectId);
-    return proj?.status === 'active';
+    return proj?.status === 'active' && !t.isCompleted;
   });
 
   const FILTERS: { id: Filter; label: string }[] = [
@@ -613,7 +613,7 @@ export default function ProjectsPage() {
               </p>
             </div>
             <span className="chip bg-white/[0.06] text-slate-400">
-              {activeTaskList.filter((t) => !t.isCompleted).length} متبقية
+              {activeTaskList.length} متبقية
             </span>
           </div>
           {activeTaskList.length === 0 ? (
