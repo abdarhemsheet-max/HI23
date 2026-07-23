@@ -106,7 +106,7 @@ export default function HomePage() {
 
       {/* ===== بطاقات مالية سريعة ===== */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard title="الرصيد الإجمالي" value={s ? fmtMoney(totalBalance) : '…'} icon={WalletIcon} tone="emerald" sub={`${s?.wallets.length ?? 0} محفظة`} blurred={!showBalances} />
+        <StatCard title="الرصيد الإجمالي" value={s ? fmtMoney(totalBalance) : '…'} icon={WalletIcon} tone="orange" sub={`${s?.wallets.length ?? 0} محفظة`} blurred={!showBalances} />
         <StatCard title="دخل هذا الشهر" value={s ? fmtMoney(income) : '…'} icon={TrendingUp} tone="sky" blurred={!showBalances} />
         <StatCard title="مصروفات الشهر" value={s ? fmtMoney(expenses) : '…'} icon={TrendingDown} tone="rose" blurred={!showBalances} />
         <StatCard title="أرباح معلقة" value={s ? fmtMoney(pending) : '…'} icon={Hourglass} tone="amber" sub="بانتظار التحصيل" blurred={!showBalances} />
@@ -159,7 +159,7 @@ export default function HomePage() {
                     done ? 'text-slate-500 line-through' : 'text-slate-200 hover:bg-white/[0.05]'
                   )}
                 >
-                  {done ? <CheckCircle2 size={17} className="shrink-0 text-emerald-400" /> : <Circle size={17} className="shrink-0 text-slate-600" />}
+                  {done ? <CheckCircle2 size={17} className="shrink-0 text-orange-400" /> : <Circle size={17} className="shrink-0 text-slate-600" />}
                   {t.title}
                 </button>
               );
@@ -171,7 +171,7 @@ export default function HomePage() {
         <GlassCard>
           <div className="mb-4 flex items-center justify-between">
             <h3 className="section-title">🔥 سلاسل العادات</h3>
-            <Link to="/habits" className="text-xs font-bold text-emerald-400 hover:underline">الكل</Link>
+            <Link to="/habits" className="text-xs font-bold text-orange-400 hover:underline">الكل</Link>
           </div>
           <div className="flex flex-col gap-2.5">
             {topHabits.length === 0 && (
@@ -193,10 +193,10 @@ export default function HomePage() {
           <GlassCard className="flex-1">
             <div className="flex items-center justify-between">
               <h3 className="section-title">📖 ورد اليوم</h3>
-              <Link to="/quran" className="text-xs font-bold text-emerald-400 hover:underline">فتح</Link>
+              <Link to="/quran" className="text-xs font-bold text-orange-400 hover:underline">فتح</Link>
             </div>
             <div className="mt-3 flex items-center gap-3">
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-emerald-300">
+              <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-2.5 text-orange-300">
                 <BookOpen size={20} />
               </div>
               <div className="flex-1">
@@ -209,7 +209,7 @@ export default function HomePage() {
           <GlassCard className="flex-1">
             <div className="flex items-center justify-between">
               <h3 className="section-title">🎓 أتعلم الآن</h3>
-              <Link to="/learning" className="text-xs font-bold text-emerald-400 hover:underline">الكل</Link>
+              <Link to="/learning" className="text-xs font-bold text-orange-400 hover:underline">الكل</Link>
             </div>
             <div className="mt-3 flex flex-col gap-2.5">
               {(s?.learning ?? []).length === 0 && (
@@ -234,7 +234,7 @@ export default function HomePage() {
         <GlassCard>
           <div className="mb-4 flex items-center justify-between">
             <h3 className="section-title">💼 مشاريع نشطة</h3>
-            <Link to="/projects" className="text-xs font-bold text-emerald-400 hover:underline">الكل</Link>
+            <Link to="/projects" className="text-xs font-bold text-orange-400 hover:underline">الكل</Link>
           </div>
           <div className="flex flex-col gap-3">
             {(s?.projects ?? []).length === 0 && (
@@ -262,7 +262,7 @@ export default function HomePage() {
         <GlassCard>
           <div className="mb-4 flex items-center justify-between">
             <h3 className="section-title">⏰ تجديدات قادمة</h3>
-            <Link to="/finance" className="text-xs font-bold text-emerald-400 hover:underline">الاشتراكات</Link>
+            <Link to="/finance" className="text-xs font-bold text-orange-400 hover:underline">الاشتراكات</Link>
           </div>
           <div className="flex flex-col gap-2">
             {(s?.subscriptions ?? []).length === 0 && (

@@ -35,7 +35,7 @@ export default function MushafDashboard() {
         <p className="mt-1 text-[11px] text-slate-500">
           {completedSurahs} سورة مكتملة · {memorizedTotal} من {totalAyahs} آية ({Math.round(overallPct)}%) — التقدم يُحتسب تلقائياً من الورد المسجَّل في «النظام المخصص»
         </p>
-        <ProgressBar value={overallPct} className="mt-3" color="#34d399" />
+        <ProgressBar value={overallPct} className="mt-3" color="#f97316" />
       </GlassCard>
 
       <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6 xl:grid-cols-9">
@@ -49,21 +49,21 @@ export default function MushafDashboard() {
               title={`${s.number}. ${s.name} — ${done}/${s.totalAyahs} آية (${Math.round(pct)}%)`}
               className={cn(
                 'glass-inset relative flex flex-col items-center justify-center gap-1 overflow-hidden p-2.5 text-center transition',
-                complete && 'ring-1 ring-emerald-400/50'
+                complete && 'ring-1 ring-orange-400/50'
               )}
             >
               <div
-                className="absolute inset-x-0 bottom-0 bg-emerald-500/25 transition-all duration-500"
+                className="absolute inset-x-0 bottom-0 bg-orange-500/25 transition-all duration-500"
                 style={{ height: `${pct}%` }}
               />
               <span className="relative z-10 text-[9px] font-bold text-slate-500">{s.number}</span>
-              <span className={cn('relative z-10 text-xs font-black', complete ? 'text-emerald-300' : 'text-slate-200')}>
+              <span className={cn('relative z-10 text-xs font-black', complete ? 'text-orange-300' : 'text-slate-200')}>
                 {s.name}
               </span>
               <span className="relative z-10 text-[9px] text-slate-500">
                 {done}/{s.totalAyahs}
               </span>
-              {complete && <span className="relative z-10 text-[10px] text-emerald-300">✓</span>}
+              {complete && <span className="relative z-10 text-[10px] text-orange-300">✓</span>}
             </div>
           );
         })}

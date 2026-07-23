@@ -105,7 +105,7 @@ export default function ManualReportEditorPage() {
         </button>
         <div className="flex items-center gap-2">
           {documentId && (
-            <span className="chip bg-emerald-500/15 text-emerald-300">
+            <span className="chip bg-orange-500/15 text-orange-300">
               <Archive size={11} /> مُصدَّر في الأرشيف
             </span>
           )}

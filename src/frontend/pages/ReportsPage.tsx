@@ -160,7 +160,7 @@ export default function ReportsPage({ standalone = true }: { standalone?: boolea
             className={cn(
               'rounded-xl px-4 py-2 text-xs font-bold transition',
               tab === t.id
-                ? 'bg-gradient-to-l from-emerald-500/25 to-teal-500/10 text-emerald-300 border border-emerald-500/25'
+                ? 'bg-gradient-to-l from-orange-500/25 to-orange-500/10 text-orange-300 border border-orange-500/25'
                 : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08]'
             )}
           >
@@ -194,9 +194,9 @@ export default function ReportsPage({ standalone = true }: { standalone?: boolea
       {tab === 'auto' && (
         <>
           {/* قاعدة الاعتماد الفوري — صارمة ولا استثناء لها */}
-          <div className="glass flex items-center gap-3 border-emerald-500/20 bg-emerald-500/[0.06] p-4">
-            <Zap size={18} className="shrink-0 text-emerald-300" />
-            <p className="text-xs text-emerald-200/90">
+          <div className="glass flex items-center gap-3 border-orange-500/20 bg-orange-500/[0.06] p-4">
+            <Zap size={18} className="shrink-0 text-orange-300" />
+            <p className="text-xs text-orange-200/90">
               <b>اعتماد فوري:</b> بمجرد إنشاء التقرير تُسحب تلقائياً المهام المنجزة والمُعلَّمة
               صراحةً «للتقرير الرسمي» فقط، ويُعتمد ويُؤرشف مباشرة — <b>لا توجد ولن توجد خطوة مراجعة يدوية</b> في هذا التبويب.
             </p>
@@ -235,7 +235,7 @@ export default function ReportsPage({ standalone = true }: { standalone?: boolea
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        <span className="chip bg-emerald-500/15 text-emerald-300">
+                        <span className="chip bg-orange-500/15 text-orange-300">
                           <Archive size={11} /> مؤرشف ✓
                         </span>
                         <Link to={`/reports/${r.id}`} className="btn-ghost !px-3 !py-1.5 text-[11px]">
@@ -290,7 +290,7 @@ export default function ReportsPage({ standalone = true }: { standalone?: boolea
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {r.documentId && (
-                        <span className="chip bg-emerald-500/15 text-emerald-300">
+                        <span className="chip bg-orange-500/15 text-orange-300">
                           <FileDown size={11} /> مُصدَّر
                         </span>
                       )}
@@ -340,7 +340,7 @@ export default function ReportsPage({ standalone = true }: { standalone?: boolea
           </div>
         ) : (
           <form onSubmit={onForm(createReport)} className="flex flex-col gap-4">
-            <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+            <p className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-3 text-xs text-orange-200">
               اختر المشروع والمدة — ستُجلب تلقائياً المهام <b>المنجزة</b> والمُعلَّمة
               <span className="text-sky-300"> «للتقرير» </span>
               فقط ضمن هذه الفترة (يشمل المؤرشف)، ثم <b>يُعتمد التقرير ويُؤرشف فوراً</b>.

@@ -71,7 +71,7 @@ export default function RichTextEditor({ content, onChange }: Props) {
   const toolBtn = (active: boolean) =>
     cn(
       'rounded-lg p-2 transition',
-      active ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
+      active ? 'bg-orange-500/20 text-orange-300' : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
     );
 
   return (

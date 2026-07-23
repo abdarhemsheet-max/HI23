@@ -227,7 +227,7 @@ export default function LearningPage() {
         <StatCard title="قيد الدراسة الآن" value={String(inProgress.length)} icon={Play} tone="violet" />
         <StatCard title="دروس وصفحات منجزة" value={String(totalDoneUnits)} icon={CheckCircle2} tone="sky" />
         <StatCard title="أُتم بالكامل" value={String(completed.length)} icon={Trophy} tone="amber" sub={`${level.icon} ${level.title}`} />
-        <StatCard title="نقاط الخبرة" value={`${xp} XP`} icon={Zap} tone="emerald" sub="كل إنجاز = 10 نقاط" />
+        <StatCard title="نقاط الخبرة" value={`${xp} XP`} icon={Zap} tone="orange" sub="كل إنجاز = 10 نقاط" />
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -238,7 +238,7 @@ export default function LearningPage() {
             className={cn(
               'rounded-xl px-4 py-2 text-xs font-bold transition',
               filter === f.id
-                ? 'bg-gradient-to-l from-emerald-500/25 to-teal-500/10 text-emerald-300 border border-emerald-500/25'
+                ? 'bg-gradient-to-l from-orange-500/25 to-orange-500/10 text-orange-300 border border-orange-500/25'
                 : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08]'
             )}
           >
@@ -309,7 +309,7 @@ export default function LearningPage() {
                       href={item.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-xl bg-emerald-500/90 px-3 py-1.5 text-[11px] font-black text-night-900 opacity-0 shadow-lg transition group-hover:opacity-100"
+                      className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 rounded-xl bg-orange-500/90 px-3 py-1.5 text-[11px] font-black text-night-900 opacity-0 shadow-lg transition group-hover:opacity-100"
                     >
                       <Play size={12} /> متابعة المشاهدة
                     </a>
@@ -336,7 +336,7 @@ export default function LearningPage() {
 
                   {nextLesson && item.status !== 'done' && (
                     <p className="mt-2.5 line-clamp-1 text-[11px] text-slate-500">
-                      <span className="font-bold text-emerald-400">▶ التالي:</span> {nextLesson.title}
+                      <span className="font-bold text-orange-400">▶ التالي:</span> {nextLesson.title}
                     </p>
                   )}
 
@@ -366,7 +366,7 @@ export default function LearningPage() {
                           <Pause size={14} />
                         </button>
                       ) : item.status === 'paused' ? (
-                        <button className="text-slate-500 hover:text-emerald-300" title="استئناف" onClick={() => setStatus(item, 'in_progress')}>
+                        <button className="text-slate-500 hover:text-orange-300" title="استئناف" onClick={() => setStatus(item, 'in_progress')}>
                           <Play size={14} />
                         </button>
                       ) : null}
@@ -392,7 +392,7 @@ export default function LearningPage() {
               )}
               {open.channel && <span className="chip bg-white/[0.06] text-slate-300">{open.channel}</span>}
               {open.url && (
-                <a href={open.url} target="_blank" rel="noreferrer" className="chip border border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20">
+                <a href={open.url} target="_blank" rel="noreferrer" className="chip border border-orange-500/25 bg-orange-500/10 text-orange-300 hover:bg-orange-500/20">
                   <ExternalLink size={11} /> فتح الكورس
                 </a>
               )}
@@ -401,9 +401,9 @@ export default function LearningPage() {
             <div>
               <div className="mb-1.5 flex items-center justify-between text-[11px]">
                 <span className="font-bold text-slate-400">{open.doneUnits} / {open.totalUnits}</span>
-                <span className="font-black text-emerald-300">{Math.round(pctOf(open))}%</span>
+                <span className="font-black text-orange-300">{Math.round(pctOf(open))}%</span>
               </div>
-              <ProgressBar value={pctOf(open)} color={open.status === 'done' ? '#fbbf24' : '#34d399'} />
+              <ProgressBar value={pctOf(open)} color={open.status === 'done' ? '#fbbf24' : '#f97316'} />
             </div>
 
             {/* قائمة الدروس */}
@@ -423,7 +423,7 @@ export default function LearningPage() {
                     )}
                   >
                     {l.isDone ? (
-                      <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
+                      <CheckCircle2 size={16} className="shrink-0 text-orange-400" />
                     ) : (
                       <Circle size={16} className="shrink-0 text-slate-600" />
                     )}

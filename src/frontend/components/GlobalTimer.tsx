@@ -76,7 +76,7 @@ export default function GlobalTimer() {
               <button
                 key={m}
                 onClick={() => start(m)}
-                className="rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1 text-[10px] font-bold text-slate-400 transition hover:border-emerald-500/30 hover:text-emerald-300"
+                className="rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1 text-[10px] font-bold text-slate-400 transition hover:border-orange-500/30 hover:text-orange-300"
               >
                 {m}د
               </button>
@@ -87,7 +87,7 @@ export default function GlobalTimer() {
             <span
               className={cn(
                 'text-lg font-black tabular-nums',
-                running ? 'text-emerald-300' : 'text-amber-300'
+                running ? 'text-orange-300' : 'text-amber-300'
               )}
             >
               {mm}:{ss}

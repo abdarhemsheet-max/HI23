@@ -41,7 +41,7 @@ const SYSTEMS: { id: System; label: string; desc: string }[] = [
 const FORTS: { key: 'fort1' | 'fort2' | 'fort3' | 'fort4' | 'fort5'; label: string; desc: string; icon: LucideIcon; color: string }[] = [
   { key: 'fort1', label: 'القراءة / الاستماع', desc: 'ورد التلاوة أو الاستماع اليومي', icon: Headphones, color: '#38bdf8' },
   { key: 'fort2', label: 'التحضير', desc: 'تحضير مقطع الحفظ القادم', icon: BookMarked, color: '#a78bfa' },
-  { key: 'fort3', label: 'الحفظ الجديد', desc: 'حفظ المقطع الجديد وإتقانه', icon: Brain, color: '#34d399' },
+  { key: 'fort3', label: 'الحفظ الجديد', desc: 'حفظ المقطع الجديد وإتقانه', icon: Brain, color: '#f97316' },
   { key: 'fort4', label: 'المراجعة القريبة', desc: 'مراجعة محفوظ آخر أسبوع', icon: RotateCcw, color: '#fbbf24' },
   { key: 'fort5', label: 'المراجعة البعيدة', desc: 'مراجعة المحفوظ القديم', icon: History, color: '#fb7185' },
 ];
@@ -208,10 +208,10 @@ export default function QuranPage() {
             onClick={() => switchSystem(s.id)}
             className={cn(
               'glass glass-hover p-4 text-right transition',
-              system === s.id && '!border-emerald-500/40 !bg-emerald-500/[0.08]'
+              system === s.id && '!border-orange-500/40 !bg-orange-500/[0.08]'
             )}
           >
-            <p className={cn('text-sm font-black', system === s.id ? 'text-emerald-300' : 'text-slate-200')}>{s.label}</p>
+            <p className={cn('text-sm font-black', system === s.id ? 'text-orange-300' : 'text-slate-200')}>{s.label}</p>
             <p className="mt-1 text-[11px] text-slate-500">{s.desc}</p>
           </button>
         ))}
@@ -228,7 +228,7 @@ export default function QuranPage() {
                 <h3 className="section-title">🏰 حصون اليوم</h3>
                 <p className="text-[11px] text-slate-500">أنجز الحصون الخمسة كل يوم لتحصين حفظك</p>
               </div>
-              <span className={cn('chip', fortsDone === 5 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/[0.06] text-slate-400')}>
+              <span className={cn('chip', fortsDone === 5 ? 'bg-orange-500/15 text-orange-300' : 'bg-white/[0.06] text-slate-400')}>
                 {fortsDone}/5 {fortsDone === 5 && '🎉'}
               </span>
             </div>
@@ -252,7 +252,7 @@ export default function QuranPage() {
                     </div>
                     <p className="text-xs font-black">{f.label}</p>
                     <p className="text-[10px] leading-relaxed text-slate-500">{f.desc}</p>
-                    <span className={cn('chip', done ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/[0.05] text-slate-500')}>
+                    <span className={cn('chip', done ? 'bg-orange-500/20 text-orange-300' : 'bg-white/[0.05] text-slate-500')}>
                       {done ? <><CheckCircle2 size={11} /> أُنجز</> : 'لم يُنجز'}
                     </span>
                   </button>
@@ -278,7 +278,7 @@ export default function QuranPage() {
                   {[...week].reverse().map((d) => {
                     const row = d === today ? hosoonDay : hosoonWeek.find((x) => x.date === d);
                     return (
-                      <tr key={d} className={cn('border-t border-white/[0.05]', d === today && 'bg-emerald-500/[0.05]')}>
+                      <tr key={d} className={cn('border-t border-white/[0.05]', d === today && 'bg-orange-500/[0.05]')}>
                         <td className="p-2 text-right font-bold text-slate-300">
                           {d === today ? 'اليوم' : fmtDateShort(d)}
                         </td>
@@ -340,7 +340,7 @@ export default function QuranPage() {
                 const pct = (s.currentReps / Math.max(1, s.targetReps)) * 100;
                 const done = s.currentReps >= s.targetReps;
                 return (
-                  <GlassCard key={s.id} className={cn('group', done && 'border-emerald-500/30')}>
+                  <GlassCard key={s.id} className={cn('group', done && 'border-orange-500/30')}>
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="text-base font-black">📖 {s.verses}</p>
@@ -365,8 +365,8 @@ export default function QuranPage() {
                         className={cn(
                           'flex h-32 w-32 flex-col items-center justify-center rounded-full border-4 transition active:scale-95',
                           done
-                            ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-300 shadow-[0_0_30px_rgba(52,211,153,0.25)]'
-                            : 'border-teal-400/40 bg-white/[0.04] text-slate-100 hover:bg-white/[0.08]'
+                            ? 'border-orange-400/60 bg-orange-500/15 text-orange-300 shadow-[0_0_30px_rgba(251,146,60,0.25)]'
+                            : 'border-white/10 bg-white/[0.04] text-slate-100 hover:bg-white/[0.08]'
                         )}
                         aria-label="تكرار +1"
                       >
@@ -375,9 +375,9 @@ export default function QuranPage() {
                       </button>
                       <div className="w-11" />
                     </div>
-                    <ProgressBar value={pct} className="mt-4" color={done ? '#34d399' : '#2dd4bf'} />
+                    <ProgressBar value={pct} className="mt-4" color={done ? '#f97316' : '#f97316'} />
                     {done && (
-                      <p className="mt-2 text-center text-xs font-bold text-emerald-300">
+                      <p className="mt-2 text-center text-xs font-bold text-orange-300">
                         ✓ بلغت الهدف — ثبّت بالربط والمراجعة
                       </p>
                     )}
@@ -427,7 +427,7 @@ export default function QuranPage() {
                         {s.reviewDone && ' · روجعت'}
                       </p>
                     </div>
-                    <span className={cn('chip', s.currentReps >= s.targetReps ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300')}>
+                    <span className={cn('chip', s.currentReps >= s.targetReps ? 'bg-orange-500/15 text-orange-300' : 'bg-amber-500/15 text-amber-300')}>
                       {s.currentReps >= s.targetReps ? 'مكتملة ✓' : 'ناقصة'}
                     </span>
                   </div>
@@ -491,14 +491,14 @@ export default function QuranPage() {
                 {entries.slice(0, 20).map((e) => (
                   <div key={e.id} className="glass-inset group flex items-center justify-between gap-3 p-3">
                     <div className="flex items-center gap-3">
-                      <div className={cn('rounded-lg p-2', e.type === 'hifz' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-sky-500/10 text-sky-300')}>
+                      <div className={cn('rounded-lg p-2', e.type === 'hifz' ? 'bg-orange-500/10 text-orange-300' : 'bg-sky-500/10 text-sky-300')}>
                         <BookOpen size={15} />
                       </div>
                       <div>
                         <p className="text-sm font-bold">
                           {e.surah}
                           {e.fromAyah && e.toAyah ? ` (${e.fromAyah}–${e.toAyah})` : ''}
-                          <span className={cn('chip mr-2', e.type === 'hifz' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-sky-500/15 text-sky-300')}>
+                          <span className={cn('chip mr-2', e.type === 'hifz' ? 'bg-orange-500/15 text-orange-300' : 'bg-sky-500/15 text-sky-300')}>
                             {e.type === 'hifz' ? 'حفظ' : 'مراجعة'}
                           </span>
                         </p>

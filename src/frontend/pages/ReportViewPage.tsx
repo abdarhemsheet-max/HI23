@@ -57,7 +57,7 @@ export default function ReportViewPage() {
           <ArrowRight size={14} /> رجوع للأرشيف
         </button>
         <div className="flex items-center gap-2">
-          <span className="chip bg-emerald-500/15 text-emerald-300">
+          <span className="chip bg-orange-500/15 text-orange-300">
             <Archive size={11} /> معتمد ومؤرشف
           </span>
           <button className="btn-primary !px-4 !py-2 text-xs" onClick={() => window.print()}>

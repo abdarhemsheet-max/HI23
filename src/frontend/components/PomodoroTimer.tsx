@@ -69,7 +69,7 @@ export default function PomodoroTimer() {
   const pct = ((total - remaining) / total) * 100;
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
   const ss = String(remaining % 60).padStart(2, '0');
-  const color = mode === 'focus' ? '#34d399' : '#fbbf24';
+  const color = mode === 'focus' ? '#f97316' : '#fbbf24';
 
   return (
     <div className="glass flex flex-wrap items-center justify-between gap-4 p-4">
@@ -100,7 +100,7 @@ export default function PomodoroTimer() {
             {mode === 'focus' ? '🍅 جلسة تركيز للحفظ' : '☕ استراحة قصيرة'}
           </p>
           <p className="mt-0.5 text-[11px] text-slate-500">
-            {FOCUS_MIN} دقيقة تركيز · {BREAK_MIN} دقائق راحة — جلسات اليوم: <b className="text-emerald-300">{doneToday}</b>
+            {FOCUS_MIN} دقيقة تركيز · {BREAK_MIN} دقائق راحة — جلسات اليوم: <b className="text-orange-300">{doneToday}</b>
           </p>
           <div className="mt-2 flex gap-1.5">
             <button
@@ -108,7 +108,7 @@ export default function PomodoroTimer() {
               className={cn(
                 'flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition',
                 mode === 'focus'
-                  ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                  ? 'border-orange-500/40 bg-orange-500/15 text-orange-300'
                   : 'border-white/10 bg-white/[0.04] text-slate-500 hover:text-slate-300'
               )}
             >

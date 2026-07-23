@@ -56,7 +56,7 @@ function Row({
       style={style}
       className={cn(
         'glass-inset group flex items-center gap-2 p-2.5',
-        isDragging && 'ring-1 ring-emerald-500/40'
+        isDragging && 'ring-1 ring-orange-500/40'
       )}
     >
       {/* مقبض السحب */}
@@ -71,7 +71,7 @@ function Row({
 
       <button onClick={() => onToggle(task)} className="shrink-0" aria-label="تبديل الإنجاز">
         {task.isCompleted ? (
-          <CheckCircle2 size={17} className="text-emerald-400" />
+          <CheckCircle2 size={17} className="text-orange-400" />
         ) : (
           <Circle size={17} className="text-slate-600" />
         )}

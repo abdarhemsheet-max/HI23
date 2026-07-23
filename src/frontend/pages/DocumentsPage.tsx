@@ -21,7 +21,7 @@ import Modal from '@/frontend/components/ui/Modal';
 import EmptyState from '@/frontend/components/ui/EmptyState';
 import { useConfirm } from '@/frontend/hooks/useConfirm';
 
-const FOLDER_COLORS = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#fb7185'];
+const FOLDER_COLORS = ['#38bdf8', '#a78bfa', '#f97316', '#fbbf24', '#fb7185'];
 
 function fmtSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -221,7 +221,7 @@ export default function DocumentsPage() {
           className={cn(
             'flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition',
             activeFolder === 'all'
-              ? 'bg-gradient-to-l from-emerald-500/25 to-teal-500/10 text-emerald-300 border border-emerald-500/25'
+              ? 'bg-gradient-to-l from-orange-500/25 to-orange-500/10 text-orange-300 border border-orange-500/25'
               : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08]'
           )}
         >

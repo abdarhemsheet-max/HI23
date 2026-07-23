@@ -15,7 +15,7 @@ export default function PrivacyToggleButton({
       onClick={onToggle}
       title={visible ? 'إخفاء المبالغ' : 'إظهار المبالغ'}
       aria-label={visible ? 'إخفاء المبالغ' : 'إظهار المبالغ'}
-      className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-400 backdrop-blur-xl transition hover:border-emerald-500/30 hover:bg-white/10 hover:text-emerald-300"
+      className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-400 backdrop-blur-xl transition hover:border-orange-500/30 hover:bg-white/10 hover:text-orange-300"
     >
       {visible ? <Eye size={17} /> : <EyeOff size={17} />}
     </button>

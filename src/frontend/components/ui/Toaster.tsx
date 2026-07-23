@@ -34,13 +34,13 @@ export default function Toaster() {
           className={`glass animate-fade-up flex items-center gap-3 p-3.5 text-sm font-bold ${
             t.type === 'error'
               ? 'border-rose-500/30 bg-rose-500/10 text-rose-200'
-              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+              : 'border-orange-500/30 bg-orange-500/10 text-orange-200'
           }`}
         >
           {t.type === 'error' ? (
             <AlertTriangle size={17} className="shrink-0 text-rose-300" />
           ) : (
-            <CheckCircle2 size={17} className="shrink-0 text-emerald-300" />
+            <CheckCircle2 size={17} className="shrink-0 text-orange-300" />
           )}
           <p className="flex-1 leading-relaxed">{t.message}</p>
           <button

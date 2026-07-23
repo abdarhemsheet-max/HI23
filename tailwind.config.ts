@@ -14,7 +14,7 @@ const config: Config = {
           700: '#111a2e',
         },
         accent: {
-          DEFAULT: '#34d399',
+          DEFAULT: '#f97316',
           violet: '#a78bfa',
           sky: '#38bdf8',
           amber: '#fbbf24',

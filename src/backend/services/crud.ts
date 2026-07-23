@@ -145,7 +145,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
       targetAmount: posNum(b, 'targetAmount', 'المبلغ المستهدف'),
       currentAmount: optNum(b, 'currentAmount', 0),
       deadline: optDate(b, 'deadline'),
-      color: optStr(b, 'color') ?? '#34d399',
+      color: optStr(b, 'color') ?? '#f97316',
     }),
     update: (b) => ({
       ...(b.currentAmount !== undefined && { currentAmount: optNum(b, 'currentAmount', 0) }),
@@ -178,7 +178,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     create: (b) => ({
       name: reqStr(b, 'name', 'اسم العادة', 100),
       icon: optStr(b, 'icon') ?? '🔥',
-      color: optStr(b, 'color') ?? '#34d399',
+      color: optStr(b, 'color') ?? '#f97316',
     }),
     update: (b) => ({
       ...(b.name !== undefined && { name: reqStr(b, 'name', 'اسم العادة', 100) }),

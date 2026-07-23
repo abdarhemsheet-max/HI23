@@ -337,7 +337,7 @@ export default function FinancePage() {
             className={cn(
               'rounded-xl px-4 py-2 text-xs font-bold transition',
               tab === t.id
-                ? 'bg-gradient-to-l from-emerald-500/25 to-teal-500/10 text-emerald-300 border border-emerald-500/25'
+                ? 'bg-gradient-to-l from-orange-500/25 to-orange-500/10 text-orange-300 border border-orange-500/25'
                 : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08]'
             )}
           >
@@ -350,7 +350,7 @@ export default function FinancePage() {
       {tab === 'overview' && (
         <>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <StatCard title="الدخل (هذا الشهر)" value={fmtMoney(income)} icon={TrendingUp} tone="emerald" blurred={!showBalances} />
+            <StatCard title="الدخل (هذا الشهر)" value={fmtMoney(income)} icon={TrendingUp} tone="orange" blurred={!showBalances} />
             <StatCard title="المصروفات (هذا الشهر)" value={fmtMoney(expenses)} icon={TrendingDown} tone="rose" blurred={!showBalances} />
             <StatCard title="الأرباح المعلقة" value={fmtMoney(pending)} icon={Hourglass} tone="amber" sub="بانتظار التحصيل" blurred={!showBalances} />
             <StatCard title="صافي الشهر" value={fmtMoney(income - expenses)} icon={WalletIcon} tone={income - expenses >= 0 ? 'sky' : 'rose'} blurred={!showBalances} />
@@ -390,7 +390,7 @@ export default function FinancePage() {
                 {txns.slice(0, 12).map((t) => (
                   <div key={t.id} className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[0.04]">
                     <div className="flex items-center gap-3">
-                      <div className={cn('rounded-lg p-2', t.type === 'income' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300')}>
+                      <div className={cn('rounded-lg p-2', t.type === 'income' ? 'bg-orange-500/10 text-orange-300' : 'bg-rose-500/10 text-rose-300')}>
                         {t.type === 'income' ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
                       </div>
                       <div>
@@ -402,7 +402,7 @@ export default function FinancePage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={cn('text-sm font-black', t.type === 'income' ? 'text-emerald-300' : 'text-rose-300', moneyBlur)}>
+                      <span className={cn('text-sm font-black', t.type === 'income' ? 'text-orange-300' : 'text-rose-300', moneyBlur)}>
                         {t.type === 'income' ? '+' : '−'}{fmtMoney(t.amount)}
                       </span>
                       <button className="text-slate-700 opacity-0 transition group-hover:opacity-100 hover:!text-rose-400" onClick={() => delTxn(t.id)}>
@@ -421,18 +421,18 @@ export default function FinancePage() {
       {tab === 'wallets' && (
         <>
           <div className="grid grid-cols-2 gap-4">
-            <StatCard title="💵 كاش (نقدي)" value={fmtMoney(cash)} icon={Banknote} tone="emerald" blurred={!showBalances} />
+            <StatCard title="💵 كاش (نقدي)" value={fmtMoney(cash)} icon={Banknote} tone="orange" blurred={!showBalances} />
             <StatCard title="🏦 في المصرف" value={fmtMoney(bank)} icon={Landmark} tone="sky" blurred={!showBalances} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {wallets.map((w) => (
               <GlassCard key={w.id} hover className="group">
                 <div className="flex items-start justify-between">
-                  <div className={cn('rounded-xl border p-2.5', w.type === 'cash' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300' : 'border-sky-500/20 bg-sky-500/10 text-sky-300')}>
+                  <div className={cn('rounded-xl border p-2.5', w.type === 'cash' ? 'border-orange-500/20 bg-orange-500/10 text-orange-300' : 'border-sky-500/20 bg-sky-500/10 text-sky-300')}>
                     {w.type === 'cash' ? <Banknote size={20} /> : <Landmark size={20} />}
                   </div>
                   <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
-                    <button className="text-slate-500 hover:text-emerald-300" onClick={() => { setEditItem(w); setModal('walletEdit'); }}>
+                    <button className="text-slate-500 hover:text-orange-300" onClick={() => { setEditItem(w); setModal('walletEdit'); }}>
                       <Pencil size={14} />
                     </button>
                     <button className="text-slate-500 hover:text-rose-400" onClick={() => del('wallets', 'المحفظة')(w.id)}>
@@ -445,7 +445,7 @@ export default function FinancePage() {
                 <p className="mt-1 text-[11px] text-slate-600">{w.type === 'cash' ? 'نقدي' : 'حساب مصرفي'}</p>
               </GlassCard>
             ))}
-            <button onClick={() => setModal('wallet')} className="glass glass-hover flex min-h-[10rem] flex-col items-center justify-center gap-2 text-slate-500 hover:text-emerald-300">
+            <button onClick={() => setModal('wallet')} className="glass glass-hover flex min-h-[10rem] flex-col items-center justify-center gap-2 text-slate-500 hover:text-orange-300">
               <Plus size={24} />
               <span className="text-sm font-bold">محفظة جديدة</span>
             </button>
@@ -464,7 +464,7 @@ export default function FinancePage() {
           <div className="grid gap-4 lg:grid-cols-2">
             {(
               [
-                { dir: 'owed_to_me', title: '🟢 لي عند الآخرين', total: owedToMe, tone: 'text-emerald-300' },
+                { dir: 'owed_to_me', title: '🟢 لي عند الآخرين', total: owedToMe, tone: 'text-orange-300' },
                 { dir: 'i_owe', title: '🔴 عليّ للآخرين', total: iOwe, tone: 'text-rose-300' },
               ] as const
             ).map((col) => (
@@ -491,7 +491,7 @@ export default function FinancePage() {
                         <div className="flex items-center gap-2">
                           <span className={cn('text-sm font-black', moneyBlur)}>{fmtMoney(d.amount - d.paidAmount)}</span>
                           {d.isSettled ? (
-                            <span className="chip bg-emerald-500/15 text-emerald-300">مسدد ✓</span>
+                            <span className="chip bg-orange-500/15 text-orange-300">مسدد ✓</span>
                           ) : (
                             <button
                               className="btn-ghost !px-2.5 !py-1 text-[11px]"
@@ -633,7 +633,7 @@ export default function FinancePage() {
                     </button>
                   </div>
                   <div className="mt-3 flex items-end justify-between">
-                    <p className={cn('text-lg font-black text-emerald-300', moneyBlur)}>{fmtMoney(g.currentAmount)}</p>
+                    <p className={cn('text-lg font-black text-orange-300', moneyBlur)}>{fmtMoney(g.currentAmount)}</p>
                     <p className={cn('text-xs text-slate-500', moneyBlur)}>من {fmtMoney(g.targetAmount)}</p>
                   </div>
                   <ProgressBar value={pct} className="mt-2" color={g.color} />
@@ -875,7 +875,7 @@ export default function FinancePage() {
           const collecting = d.direction === 'owed_to_me';
           return (
             <form onSubmit={onForm(settleDebt)} className="flex flex-col gap-4">
-              <p className={cn('rounded-xl border p-3 text-xs', collecting ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200' : 'border-rose-500/20 bg-rose-500/10 text-rose-200')}>
+              <p className={cn('rounded-xl border p-3 text-xs', collecting ? 'border-orange-500/20 bg-orange-500/10 text-orange-200' : 'border-rose-500/20 bg-rose-500/10 text-rose-200')}>
                 {collecting
                   ? <>💰 سيُضاف <b>{fmtMoney(remaining)}</b> إلى المحفظة المختارة (تحصيل دين)</>
                   : <>💸 سيُخصم <b>{fmtMoney(remaining)}</b> من المحفظة المختارة (سداد دين)</>}

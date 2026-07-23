@@ -19,7 +19,7 @@ function levelOf(count: number): number {
   return 4;
 }
 
-const LEVEL_BG = ['bg-white/[0.05]', 'bg-emerald-900/70', 'bg-emerald-700/80', 'bg-emerald-500/85', 'bg-emerald-400'];
+const LEVEL_BG = ['bg-white/[0.05]', 'bg-orange-900/70', 'bg-orange-700/80', 'bg-orange-500/85', 'bg-orange-400'];
 
 /**
  * خريطة حرارية سنوية على طراز GitHub — كل مربع يوم، وكلما ازداد النشاط

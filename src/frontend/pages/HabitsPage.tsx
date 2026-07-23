@@ -244,7 +244,7 @@ export default function HabitsPage() {
                       )}
                     >
                       {done ? (
-                        <CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
+                        <CheckCircle2 size={18} className="shrink-0 text-orange-400" />
                       ) : (
                         <Circle size={18} className="shrink-0 text-slate-600" />
                       )}
@@ -298,7 +298,7 @@ export default function HabitsPage() {
                               title={d}
                               className={cn(
                                 'h-1.5 flex-1 rounded-full',
-                                dates.has(d) ? 'bg-emerald-400/90' : 'bg-white/[0.06]'
+                                dates.has(d) ? 'bg-orange-400/90' : 'bg-white/[0.06]'
                               )}
                             />
                           ))}
@@ -324,7 +324,7 @@ export default function HabitsPage() {
                         className={cn(
                           'shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold transition',
                           doneToday
-                            ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-300'
+                            ? 'border border-orange-500/30 bg-orange-500/15 text-orange-300'
                             : 'btn-primary !py-1.5 !text-xs'
                         )}
                       >

@@ -6,18 +6,18 @@ export interface StatCard {
   subtitle?: string;
   icon: React.ReactNode;
   trend?: { direction: 'up' | 'down'; value: string };
-  color?: 'emerald' | 'violet' | 'sky' | 'amber' | 'rose';
+  color?: 'orange' | 'violet' | 'sky' | 'amber' | 'rose';
 }
 
 const colorMap = {
-  emerald: { bg: 'from-emerald-500/20 to-emerald-500/5', border: 'border-emerald-500/20', icon: 'text-emerald-300', glow: 'shadow-emerald-500/10' },
+  orange: { bg: 'from-orange-500/20 to-orange-500/5', border: 'border-orange-500/20', icon: 'text-orange-300', glow: 'shadow-orange-500/10' },
   violet: { bg: 'from-violet-500/20 to-violet-500/5', border: 'border-violet-500/20', icon: 'text-violet-300', glow: 'shadow-violet-500/10' },
   sky: { bg: 'from-sky-500/20 to-sky-500/5', border: 'border-sky-500/20', icon: 'text-sky-300', glow: 'shadow-sky-500/10' },
   amber: { bg: 'from-amber-500/20 to-amber-500/5', border: 'border-amber-500/20', icon: 'text-amber-300', glow: 'shadow-amber-500/10' },
   rose: { bg: 'from-rose-500/20 to-rose-500/5', border: 'border-rose-500/20', icon: 'text-rose-300', glow: 'shadow-rose-500/10' },
 };
 
-function StatCard({ label, value, subtitle, icon, trend, color = 'emerald' }: StatCard) {
+function StatCard({ label, value, subtitle, icon, trend, color = 'orange' }: StatCard) {
   const c = colorMap[color];
   return (
     <div className={cn(
@@ -34,7 +34,7 @@ function StatCard({ label, value, subtitle, icon, trend, color = 'emerald' }: St
           <p className="mt-1 text-2xl font-black tracking-tight text-slate-100 truncate">{value}</p>
           {subtitle && <p className="mt-0.5 text-xs text-slate-500 truncate">{subtitle}</p>}
           {trend && (
-            <div className={cn('mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold', trend.direction === 'up' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300')}>
+            <div className={cn('mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold', trend.direction === 'up' ? 'bg-orange-500/10 text-orange-300' : 'bg-rose-500/10 text-rose-300')}>
               <span>{trend.direction === 'up' ? '↑' : '↓'}</span>
               <span>{trend.value}</span>
             </div>

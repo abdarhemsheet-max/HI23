@@ -29,7 +29,7 @@ import ReportsPage from './ReportsPage';
 // Lazy load: مكتبة السحب والإفلات ثقيلة — تُحمّل فقط عند فتح تبويب المهام
 const SortableTasks = lazy(() => import('@/frontend/components/SortableTasks'));
 
-const COLORS = ['#a78bfa', '#38bdf8', '#34d399', '#fbbf24', '#fb7185', '#f472b6', '#22d3ee'];
+const COLORS = ['#a78bfa', '#38bdf8', '#f97316', '#fbbf24', '#fb7185', '#f472b6', '#22d3ee'];
 
 type WorkTab = 'projects' | 'tasks' | 'reports';
 type Filter = 'active' | 'finite' | 'ongoing' | 'archived';
@@ -290,7 +290,7 @@ export default function ProjectsPage() {
                 className={cn(
                   'shrink-0 whitespace-nowrap rounded-xl px-5 py-2.5 text-sm font-bold transition flex items-center gap-2',
                   tab === t.id
-                    ? 'bg-gradient-to-l from-emerald-500/25 to-teal-500/10 text-emerald-300 border border-emerald-500/25 shadow-[0_0_20px_rgba(52,211,153,0.08)]'
+                    ? 'bg-gradient-to-l from-orange-500/25 to-orange-500/10 text-orange-300 border border-orange-500/25 shadow-[0_0_20px_rgba(52,211,153,0.08)]'
                     : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08] hover:text-slate-200'
                 )}
               >
@@ -316,7 +316,7 @@ export default function ProjectsPage() {
                 className={cn(
                   'rounded-xl px-4 py-2 text-xs font-bold transition',
                   filter === f.id
-                    ? 'bg-gradient-to-l from-emerald-500/25 to-teal-500/10 text-emerald-300 border border-emerald-500/25'
+                    ? 'bg-gradient-to-l from-orange-500/25 to-orange-500/10 text-orange-300 border border-orange-500/25'
                     : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08]'
                 )}
               >
@@ -426,7 +426,7 @@ export default function ProjectsPage() {
                       )}
                     >
                       {t.isCompleted ? (
-                        <CheckCircle2 size={17} className="shrink-0 text-emerald-400" />
+                        <CheckCircle2 size={17} className="shrink-0 text-orange-400" />
                       ) : (
                         <Circle size={17} className="shrink-0 text-slate-600" />
                       )}
@@ -481,7 +481,7 @@ export default function ProjectsPage() {
               {/* أرشيف المهام: المنجزة تختفي من العرض بعد 3 أيام وتبقى محفوظة */}
               <div className="mt-3 border-t border-white/[0.06] pt-2">
                 {countsOf(open).total > open.tasks.length && archived === null && (
-                  <button className="text-[11px] font-bold text-slate-500 hover:text-emerald-300" onClick={loadArchived}>
+                  <button className="text-[11px] font-bold text-slate-500 hover:text-orange-300" onClick={loadArchived}>
                     🗄 عرض الأرشيف ({countsOf(open).total - open.tasks.length} مهمة منجزة قديمة)
                   </button>
                 )}

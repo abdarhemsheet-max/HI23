@@ -5,20 +5,20 @@ export default function StatCard({
   title,
   value,
   icon: Icon,
-  tone = 'emerald',
+  tone = 'orange',
   sub,
   blurred = false,
 }: {
   title: string;
   value: string;
   icon: LucideIcon;
-  tone?: 'emerald' | 'violet' | 'sky' | 'amber' | 'rose';
+  tone?: 'orange' | 'violet' | 'sky' | 'amber' | 'rose';
   sub?: string;
   /** وضع الخصوصية: يموّه القيمة فقط ويُبقي هيكل البطاقة والعنوان واضحين */
   blurred?: boolean;
 }) {
   const tones: Record<string, string> = {
-    emerald: 'from-emerald-500/20 to-teal-500/5 text-emerald-300 border-emerald-500/20',
+    orange: 'from-orange-500/20 to-orange-500/5 text-orange-300 border-orange-500/20',
     violet: 'from-violet-500/20 to-purple-500/5 text-violet-300 border-violet-500/20',
     sky: 'from-sky-500/20 to-cyan-500/5 text-sky-300 border-sky-500/20',
     amber: 'from-amber-500/20 to-orange-500/5 text-amber-300 border-amber-500/20',

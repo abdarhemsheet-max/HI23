@@ -1,6 +1,6 @@
 export default function ProgressBar({
   value,
-  color = '#34d399',
+  color = '#f97316',
   className = '',
 }: {
   value: number; // 0..100

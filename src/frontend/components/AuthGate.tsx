@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Sparkles, LogIn, AlertTriangle } from 'lucide-react';
+import { LogIn, AlertTriangle } from 'lucide-react';
+import logoImg from '@/assets/LOGO.png';
 import type { Session } from '@supabase/supabase-js';
 import { getSession, onAuthStateChange, signIn } from '@/backend/config/auth';
 import { isSupabaseConfigured } from '@/backend/config/supabaseClient';
@@ -68,10 +69,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center p-6">
         <form onSubmit={submit} className="glass w-full max-w-sm p-8">
           <div className="mb-6 flex flex-col items-center gap-3 text-center">
-            <div className="rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 p-2.5 text-night-900 shadow-[0_0_20px_rgba(52,211,153,0.4)]">
-              <Sparkles size={22} />
-            </div>
-            <div>
+            <img src={logoImg} alt="شعار" className="h-14 w-14 rounded-xl object-cover shadow-[0_0_20px_rgba(251,146,60,0.4)]" />
+            <div className="space-y-0.5">
               <h1 className="text-lg font-black">نظام حياتي</h1>
               <p className="text-xs text-slate-500">سجّل الدخول للمتابعة</p>
             </div>
