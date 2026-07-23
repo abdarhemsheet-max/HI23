@@ -28,7 +28,7 @@ export interface B2UploadResult {
 /** يبني اسم تخزين آمناً: uuid + الامتداد الأصلي فقط */
 export function buildStoredFileName(originalName: string): string {
   const ext = (originalName.match(/\.[^./\\]+$/)?.[0] ?? '').toLowerCase().replace(/[^.\w]/g, '').slice(0, 10);
-  return crypto.randomUUID() + ext;
+  return 'abdarhemsh-' + crypto.randomUUID() + ext;
 }
 
 /** رفع ملف عبر Edge Function — يتولّى auth + upload للبكت مباشرة */
