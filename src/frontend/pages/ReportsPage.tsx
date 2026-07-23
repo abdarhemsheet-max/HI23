@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2, FileText, Building2, Archive, Eye, Zap, Pencil, FilePlus2, FileDown } from 'lucide-react';
+import { Plus, Trash2, FileText, Building2, Archive, Eye, Zap, Pencil, FilePlus2, FileDown, Briefcase, FolderOpen } from 'lucide-react';
 import { api, getCached } from '@/frontend/api';
 import { fmtDateShort, todayStr, cn } from '@/shared/utils';
 import type { Project, Report, WorkEntity, ManualReport } from '@/shared/types';
@@ -169,22 +169,102 @@ export default function ReportsPage({ standalone = true }: { standalone?: boolea
         ))}
       </div>
 
-      {/* جهات العمل — مشتركة بين التبويبين */}
+      {/* جهات العمل — بطاقات زجاجية متجاوبة */}
       {entities.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {entities.map((e) => (
-            <div
-              key={e.id}
-              className="glass flex items-center gap-2 px-3 py-2 text-xs font-bold"
-              style={{ borderColor: `${e.brandColor}44` }}
-            >
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: e.brandColor }} />
-              {e.name}
-              <button className="text-slate-600 hover:text-rose-400" onClick={() => deleteEntity(e.id)}>
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {entities.map((e) => {
+            const entityProjects = projects.filter((p) => p.entityId === e.id);
+            const entityReports = reports.filter((r) => r.entityId === e.id);
+            const entityManualReports = manualReports.filter((r) => r.entityId === e.id);
+            const activeProjects = entityProjects.filter((p) => p.status === 'active');
+            return (
+              <div
+                key={e.id}
+                className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-md p-5 transition-all duration-300 hover:bg-white/[0.07] hover:border-white/[0.14]"
+              >
+                {/* شريط لون العلامة التجارية */}
+                <div className="absolute inset-x-0 top-0 h-1" style={{ background: e.brandColor }} />
+
+                {/* زر الحذف */}
+                <button
+                  className="absolute left-3 top-4 text-slate-600 opacity-0 transition group-hover:opacity-100 hover:!text-rose-400"
+                  onClick={() => deleteEntity(e.id)}
+                  aria-label="حذف الجهة"
+                >
+                  <Trash2 size={14} />
+                </button>
+
+                {/* رأس البطاقة */}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
+                    style={{ color: e.brandColor, borderColor: `${e.brandColor}33`, background: `${e.brandColor}11` }}
+                  >
+                    <Building2 size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-base font-black text-slate-100">{e.name}</h3>
+                    {e.contactInfo && (
+                      <p className="truncate text-[11px] text-slate-500">{e.contactInfo}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* إحصائيات */}
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-2.5 text-center">
+                    <p className="text-xs font-black text-orange-300">{activeProjects.length}</p>
+                    <p className="text-[10px] text-slate-500">مشروع نشط</p>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-2.5 text-center">
+                    <p className="text-xs font-black text-orange-300">{entityReports.length}</p>
+                    <p className="text-[10px] text-slate-500">تقرير مؤتمت</p>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-2.5 text-center">
+                    <p className="text-xs font-black text-orange-300">{entityManualReports.length}</p>
+                    <p className="text-[10px] text-slate-500">تقرير يدوي</p>
+                  </div>
+                </div>
+
+                {/* المشاريع المرتبطة */}
+                {entityProjects.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    <p className="text-[10px] font-bold text-slate-500">المشاريع المرتبطة</p>
+                    <div className="flex flex-col gap-1">
+                      {entityProjects.slice(0, 4).map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition hover:bg-white/[0.04]"
+                        >
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: p.color }} />
+                          <span className="truncate text-slate-300">{p.name}</span>
+                          <span
+                            className={cn(
+                              'mr-auto shrink-0 text-[10px]',
+                              p.status === 'active' ? 'text-orange-400/70' : 'text-slate-600'
+                            )}
+                          >
+                            {p.status === 'active' ? (p.type === 'ongoing' ? 'مستمر' : 'نشط') : p.status === 'done' ? 'مكتمل' : 'مؤرشف'}
+                          </span>
+                        </div>
+                      ))}
+                      {entityProjects.length > 4 && (
+                        <p className="px-2 text-[10px] text-slate-600">+ {entityProjects.length - 4} مشاريع أخرى</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* أيقونة فارغة عند عدم وجود مشاريع */}
+                {entityProjects.length === 0 && (
+                  <div className="mt-3 flex items-center gap-2 rounded-lg bg-white/[0.03] px-3 py-2">
+                    <Briefcase size={12} className="text-slate-600" />
+                    <p className="text-[11px] text-slate-600">لا مشاريع مرتبطة — أنشئ مشروعاً وأسنده لهذه الجهة</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
