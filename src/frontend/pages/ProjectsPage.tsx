@@ -278,28 +278,27 @@ export default function ProjectsPage() {
         )}
       </header>
 
-      {/* شريط التبويبات — قابل للتمرير على الجوال */}
-      <div className="sticky top-0 z-20 -mx-4 px-4 pb-1 backdrop-blur-xl bg-night-900/70 border-b border-white/[0.06]">
-        <div className="flex gap-2 overflow-x-auto no-scrollbar py-3">
-          {WORK_TABS.map((t) => {
-            const Icon = t.icon;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  'shrink-0 whitespace-nowrap rounded-xl px-5 py-2.5 text-sm font-bold transition flex items-center gap-2',
-                  tab === t.id
-                    ? 'bg-gradient-to-l from-orange-500/25 to-orange-500/10 text-orange-300 border border-orange-500/25 shadow-[0_0_20px_rgba(52,211,153,0.08)]'
-                    : 'bg-white/[0.04] text-slate-400 border border-white/[0.07] hover:bg-white/[0.08] hover:text-slate-200'
-                )}
-              >
-                <Icon size={16} />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+      {/* بطاقات التبويبات — شبكة متساوية الأعمدة */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {WORK_TABS.map((t) => {
+          const Icon = t.icon;
+          const isActive = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                'group flex flex-col items-center justify-center gap-2 rounded-2xl border p-5 backdrop-blur-xl transition-all duration-300 min-h-[5rem]',
+                isActive
+                  ? 'bg-white/[0.06] border-orange-500/30 text-orange-300 shadow-[0_0_24px_rgba(251,146,60,0.12)]'
+                  : 'bg-white/[0.03] border-white/[0.08] text-slate-500 hover:bg-white/[0.06] hover:text-slate-200 hover:border-white/[0.14]'
+              )}
+            >
+              <Icon size={22} className={cn('transition', isActive ? 'text-orange-300' : 'text-slate-500 group-hover:text-slate-200')} />
+              <span className="text-sm font-black">{t.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ============================================================ */}

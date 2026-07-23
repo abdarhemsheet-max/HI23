@@ -38,7 +38,7 @@ export default function Sidebar() {
       <aside className="print-hidden fixed inset-y-0 right-0 z-40 hidden w-64 flex-col gap-2 p-4 lg:flex">
         <div className="glass flex h-full flex-col p-4">
           <div className="mb-6 flex items-center gap-3 px-2 pt-2">
-            <img src={logoImg} alt="شعار" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+            <img src={logoImg} alt="شعار" className="h-9 w-auto shrink-0 rounded-xl object-contain" />
             <div className="space-y-0.5">
               <h1 className="text-base font-black leading-tight">نظام حياتي</h1>
               <p className="text-[11px] text-slate-500">عبدالرحيم أحمد شيتة</p>
