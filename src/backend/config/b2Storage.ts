@@ -1,55 +1,21 @@
 // ======================================================================
-// اتصال مباشر من المتصفح بـ Backblaze B2 — لا مجلد API ولا خادم وسيط.
-// كل الرفع/الحذف/التنزيل يمر عبر REST API الخام لـ B2 (fetch عادي).
+// اتصال بـ Backblaze B2 عبر Supabase Edge Functions (تتولّى المصادقة
+// من الخادم فترفع/تنزّل بلا مشاكل CORS). قيم B2_SECRET مخزَّنة كـ
+// secrets في Supabase Edge Functions — غير مرئية للزائر.
 //
-// أمان: مفتاح B2 مرئي في حزمة الواجهة (اختيار مقصود — راجع محادثة الهجرة).
-// لتقليل الضرر: اجعل هذا المفتاح Application Key مقيّداً بحاوية واحدة فقط
-// من B2 Dashboard → Application Keys → Add a New Application Key.
-// روابط التنزيل نفسها ليست عامة دائماً: نولّد Download Authorization
-// مؤقتة (صالحة أسبوعاً) لكل ملف بدل جعل الحاوية كلها Public.
+// روابط الرفع نفسها (pod-*.backblaze.com) تعود مع CORS headers بعد
+// إعداد corsRules على bucket مستوى B2 (أُنجز).
 // ======================================================================
 
-const KEY_ID = import.meta.env.VITE_B2_KEY_ID;
-const APP_KEY = import.meta.env.VITE_B2_APPLICATION_KEY;
-const BUCKET_ID = import.meta.env.VITE_B2_BUCKET_ID;
-const BUCKET_NAME = import.meta.env.VITE_B2_BUCKET_NAME;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const FUNCTIONS_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : 'https://yruoooslxppvsoqdbgxc.supabase.co/functions/v1';
 
 function assertConfigured() {
-  if (!KEY_ID || !APP_KEY || !BUCKET_ID || !BUCKET_NAME) {
-    throw new Error('أضف بيانات Backblaze B2 (VITE_B2_*) في ملف .env قبل رفع الملفات');
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('أضف بيانات Supabase (VITE_SUPABASE_*) في ملف .env');
   }
-}
-
-interface B2Auth {
-  apiUrl: string;
-  downloadUrl: string;
-  authorizationToken: string;
-  expiresAt: number; // Date.now() + مهلة أمان — التوكن الفعلي صالح 24 ساعة
-}
-
-let authCache: B2Auth | null = null;
-
-async function authorize(): Promise<B2Auth> {
-  assertConfigured();
-  if (authCache && authCache.expiresAt > Date.now()) return authCache;
-
-  const res = await fetch('https://api.backblazeb2.com/b2api/v2/b2_authorize_account', {
-    headers: { Authorization: 'Basic ' + btoa(`${KEY_ID}:${APP_KEY}`) },
-  });
-  if (!res.ok) throw new Error('تعذّر الاتصال بـ Backblaze B2 — تحقق من المفاتيح');
-  const data = await res.json();
-  authCache = {
-    apiUrl: data.apiUrl,
-    downloadUrl: data.downloadUrl,
-    authorizationToken: data.authorizationToken,
-    expiresAt: Date.now() + 23 * 60 * 60 * 1000,
-  };
-  return authCache;
-}
-
-async function sha1Hex(buffer: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-1', buffer);
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export interface B2UploadResult {
@@ -65,37 +31,31 @@ export function buildStoredFileName(originalName: string): string {
   return crypto.randomUUID() + ext;
 }
 
-/** رفع ملف مباشرة من المتصفح إلى B2 */
+/** رفع ملف عبر Edge Function — يتولّى auth + upload للبكت مباشرة */
 export async function uploadToB2(file: File, storedName: string): Promise<B2UploadResult> {
-  const auth = await authorize();
+  assertConfigured();
 
-  const uploadUrlRes = await fetch(`${auth.apiUrl}/b2api/v2/b2_get_upload_url`, {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('fileName', storedName);
+
+  const res = await fetch(`${FUNCTIONS_URL}/b2-upload`, {
     method: 'POST',
-    headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bucketId: BUCKET_ID }),
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+    body: form,
   });
-  if (!uploadUrlRes.ok) throw new Error('تعذّر تجهيز الرفع إلى B2');
-  const { uploadUrl, authorizationToken } = await uploadUrlRes.json();
 
-  const buffer = await file.arrayBuffer();
-  const sha1 = await sha1Hex(buffer);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || 'فشل رفع الملف عبر الخادم');
+  }
 
-  const uploadRes = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: authorizationToken,
-      'X-Bz-File-Name': encodeURIComponent(storedName),
-      'Content-Type': file.type || 'b2/x-auto',
-      'X-Bz-Content-Sha1': sha1,
-    },
-    body: buffer,
-  });
-  if (!uploadRes.ok) throw new Error('فشل رفع الملف إلى B2');
-  const uploaded = await uploadRes.json();
+  const result = await res.json();
+  if (!result.upload) throw new Error('استجابة غير متوقعة من خادم الرفع');
 
   return {
-    fileName: storedName,
-    bzFileId: uploaded.fileId,
+    fileName: result.upload.fileName,
+    bzFileId: result.upload.fileId,
     size: file.size,
     mimeType: file.type || 'application/octet-stream',
   };
@@ -104,32 +64,42 @@ export async function uploadToB2(file: File, storedName: string): Promise<B2Uplo
 /** حذف ملف نهائياً من B2 */
 export async function deleteFromB2(fileName: string, bzFileId: string): Promise<void> {
   if (!fileName || !bzFileId) return;
-  const auth = await authorize();
-  await fetch(`${auth.apiUrl}/b2api/v2/b2_delete_file_version`, {
+  assertConfigured();
+
+  await fetch(`${FUNCTIONS_URL}/b2-delete`, {
     method: 'POST',
-    headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' },
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({ fileName, fileId: bzFileId }),
-  }).catch(() => {}); // فشل الحذف من B2 لا يجب أن يوقف حذف السجل من القاعدة
+  }).catch(() => {});
 }
 
 const downloadUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
-/** يولّد رابط تنزيل/معاينة مؤقت (صالح 7 أيام) لملف محدد داخل الحاوية */
+/** يولّد رابط تنزيل/معاينة مؤقت (صالح ساعة) عبر Edge Function */
 export async function getB2FileUrl(fileName: string): Promise<string> {
   const cached = downloadUrlCache.get(fileName);
   if (cached && cached.expiresAt > Date.now()) return cached.url;
 
-  const auth = await authorize();
-  const VALID_SECONDS = 7 * 24 * 60 * 60;
-  const res = await fetch(`${auth.apiUrl}/b2api/v2/b2_get_download_authorization`, {
-    method: 'POST',
-    headers: { Authorization: auth.authorizationToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bucketId: BUCKET_ID, fileNamePrefix: fileName, validDurationInSeconds: VALID_SECONDS }),
-  });
-  if (!res.ok) throw new Error('تعذّر تجهيز رابط الملف');
-  const { authorizationToken } = await res.json();
+  assertConfigured();
 
-  const url = `${auth.downloadUrl}/file/${BUCKET_NAME}/${encodeURIComponent(fileName)}?Authorization=${authorizationToken}`;
-  downloadUrlCache.set(fileName, { url, expiresAt: Date.now() + (VALID_SECONDS - 300) * 1000 });
-  return url;
+  const res = await fetch(`${FUNCTIONS_URL}/b2-download`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ filePath: fileName }),
+  });
+
+  if (!res.ok) throw new Error('تعذّر تجهيز رابط الملف');
+  const data = await res.json();
+  if (!data.downloadUrl) throw new Error('تعذّر تجهيز رابط الملف');
+
+  downloadUrlCache.set(fileName, { url: data.downloadUrl, expiresAt: Date.now() + 55 * 60 * 1000 });
+  return data.downloadUrl;
 }
