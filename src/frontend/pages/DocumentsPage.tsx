@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { api, getCached, notify } from '@/frontend/api';
-import { getDocumentFileUrl, uploadDocumentWithProgress } from '@/backend/services/documents';
+import { getDocumentFileUrl, uploadDocumentWithProgress, getStorageUsage } from '@/backend/services/documents';
 import { fmtDateShort, cn } from '@/shared/utils';
 import type { DocFolder, Document } from '@/shared/types';
 import GlassCard from '@/frontend/components/ui/GlassCard';
@@ -41,9 +41,12 @@ interface StagedFile {
   folderId: string; // '' = بدون مجلد
 }
 
+const MAX_STORAGE = 10 * 1024 * 1024 * 1024; // 10 GB
+
 export default function DocumentsPage() {
   const [folders, setFolders] = useState<DocFolder[]>(() => getCached<DocFolder[]>('/api/crud/folders') ?? []);
   const [docs, setDocs] = useState<Document[]>(() => getCached<Document[]>('/api/documents') ?? []);
+  const [totalBytes, setTotalBytes] = useState<number | null>(null);
   const [activeFolder, setActiveFolder] = useState<string | 'all'>('all');
   const [modal, setModal] = useState<null | 'folder'>(null);
   const [viewer, setViewer] = useState<Document | null>(null);
@@ -55,12 +58,14 @@ export default function DocumentsPage() {
   const { confirm, ConfirmDialog } = useConfirm();
 
   const load = useCallback(async () => {
-    const [f, d] = await Promise.all([
+    const [f, d, usage] = await Promise.all([
       api<DocFolder[]>('/api/crud/folders'),
       api<Document[]>('/api/documents'),
+      getStorageUsage(),
     ]);
     if (f) setFolders(f);
     if (d) setDocs(d);
+    setTotalBytes(usage);
   }, []);
 
   useEffect(() => {
@@ -186,12 +191,16 @@ export default function DocumentsPage() {
   const downloadFile = async (d: Document) => {
     try {
       const url = await getDocumentFileUrl(d.id);
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = blobUrl;
       a.download = d.name;
-      a.target = '_blank';
-      a.rel = 'noreferrer';
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
     } catch (err) {
       notify(err instanceof Error ? err.message : 'تعذّر تجهيز رابط التنزيل', 'error');
     }
@@ -225,6 +234,38 @@ export default function DocumentsPage() {
           />
         </div>
       </header>
+
+      {/* ===== شريط استهلاك المساحة (10GB) ===== */}
+      {totalBytes !== null && (
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-md p-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/15 text-orange-300">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-300">مساحة التخزين</p>
+                <p className="text-[10px] text-slate-500">{fmtSize(totalBytes)} من {fmtSize(MAX_STORAGE)}</p>
+              </div>
+            </div>
+            <span className={cn(
+              'text-[11px] font-black',
+              totalBytes / MAX_STORAGE > 0.9 ? 'text-rose-300' : 'text-orange-300'
+            )}>
+              {Math.round((totalBytes / MAX_STORAGE) * 100)}%
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all duration-500',
+                totalBytes / MAX_STORAGE > 0.9 ? 'bg-rose-500' : 'bg-orange-500'
+              )}
+              style={{ width: `${Math.min((totalBytes / MAX_STORAGE) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ===== المجلدات ===== */}
       <div className="flex flex-wrap gap-2">

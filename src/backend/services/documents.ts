@@ -109,6 +109,13 @@ export async function deleteDocument(id: string) {
   return { ok: true };
 }
 
+/** إجمالي المساحة المستهلكة في B2 (بالبايت) — يُحتسب من SUM(s) القاعدة */
+export async function getStorageUsage(): Promise<number> {
+  const { data } = await supabase.from('Document').select('size');
+  if (!data) return 0;
+  return data.reduce((sum, d) => sum + (d.size ?? 0), 0);
+}
+
 /** رابط معاينة/تنزيل مؤقت (7 أيام) للملف داخل عارض النظام */
 export async function getDocumentFileUrl(id: string): Promise<string> {
   const doc = unwrap(await supabase.from('Document').select('fileName').eq('id', id).single()) as { fileName: string };
