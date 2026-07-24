@@ -15,10 +15,12 @@ import {
   Trophy,
   Sparkles,
   Zap,
+  X,
+  Maximize2,
 } from 'lucide-react';
 import { api, getCached, notify } from '@/frontend/api';
 import { cn } from '@/shared/utils';
-import { youtubeThumb, isYouTube } from '@/frontend/youtube';
+import { youtubeThumb, isYouTube, youtubeVideoId } from '@/frontend/youtube';
 import type { LearningItem, LearningLesson } from '@/shared/types';
 import GlassCard from '@/frontend/components/ui/GlassCard';
 import Modal from '@/frontend/components/ui/Modal';
@@ -26,6 +28,7 @@ import EmptyState from '@/frontend/components/ui/EmptyState';
 import ProgressBar from '@/frontend/components/ui/ProgressBar';
 import StatCard from '@/frontend/components/ui/StatCard';
 import { useConfirm } from '@/frontend/hooks/useConfirm';
+import LessonNotesEditor from '@/frontend/components/LessonNotesEditor';
 
 type Filter = 'all' | 'course' | 'book' | 'done';
 
@@ -53,6 +56,8 @@ export default function LearningPage() {
   const [modal, setModal] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [theaterItem, setTheaterItem] = useState<LearningItem | null>(null);
+  const [theaterLesson, setTheaterLesson] = useState<LearningLesson | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
 
   const load = useCallback(async () => {
@@ -184,6 +189,37 @@ export default function LearningPage() {
       if (openId === item.id) setOpenId(null);
       load();
     }
+  };
+
+  // ===== وضع التركيز المسرحي =====
+  const openTheater = (item: LearningItem, lesson?: LearningLesson) => {
+    setTheaterItem(item);
+    setTheaterLesson(lesson ?? null);
+    setOpenId(null);
+  };
+
+  const closeTheater = () => {
+    setTheaterItem(null);
+    setTheaterLesson(null);
+    load();
+  };
+
+  const theaterNextLesson = () => {
+    if (!theaterItem) return;
+    const lessons = theaterItem.lessons;
+    if (lessons.length === 0) return;
+    const idx = theaterLesson ? lessons.findIndex((l) => l.id === theaterLesson.id) : -1;
+    const next = lessons[idx + 1] ?? lessons[0];
+    setTheaterLesson(next);
+  };
+
+  const theaterPrevLesson = () => {
+    if (!theaterItem) return;
+    const lessons = theaterItem.lessons;
+    if (lessons.length === 0) return;
+    const idx = theaterLesson ? lessons.findIndex((l) => l.id === theaterLesson.id) : 1;
+    const prev = lessons[idx - 1] ?? lessons[lessons.length - 1];
+    setTheaterLesson(prev);
   };
 
   // ===== إحصائيات وطابع الألعاب =====
@@ -370,6 +406,9 @@ export default function LearningPage() {
                           <Play size={14} />
                         </button>
                       ) : null}
+                      <button className="text-slate-500 hover:text-orange-300" title="وضع التركيز" onClick={() => openTheater(item)}>
+                        <Maximize2 size={14} />
+                      </button>
                       <button className="text-slate-500 hover:text-rose-400" onClick={() => del(item)}>
                         <Trash2 size={14} />
                       </button>
@@ -430,7 +469,14 @@ export default function LearningPage() {
                     <span className="text-[10px] font-black text-slate-600">{idx + 1}</span>
                     <span className="flex-1">{l.title}</span>
                   </button>
-                  <button className="text-slate-700 opacity-0 group-hover:opacity-100 hover:!text-rose-400" onClick={() => delLesson(l.id)}>
+                  <button
+                    className="shrink-0 text-slate-600 opacity-0 transition hover:text-orange-300 group-hover:opacity-100"
+                    title="فتح في وضع التركيز"
+                    onClick={() => openTheater(open, l)}
+                  >
+                    <Maximize2 size={13} />
+                  </button>
+                  <button className="shrink-0 text-slate-700 opacity-0 group-hover:opacity-100 hover:!text-rose-400" onClick={() => delLesson(l.id)}>
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -516,6 +562,164 @@ export default function LearningPage() {
           <button className="btn-primary">إضافة وبدء الرحلة 🚀</button>
         </form>
       </Modal>
+
+      {/* ============ وضع التركيز المسرحي ============ */}
+      {theaterItem && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-md">
+          {/* شريط علوي */}
+          <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+            <button
+              onClick={closeTheater}
+              className="flex items-center gap-2 rounded-xl border border-white/[0.10] bg-white/[0.05] px-4 py-2 text-sm font-bold text-slate-300 backdrop-blur transition hover:border-rose-500/30 hover:text-rose-300"
+            >
+              <X size={16} /> خروج
+            </button>
+            <div className="flex flex-1 items-center justify-center gap-3 px-4 text-center">
+              <h2 className="text-base font-black text-slate-100">{theaterItem.title}</h2>
+              {theaterLesson && (
+                <span className="hidden text-sm text-slate-500 sm:inline">
+                  · {theaterLesson.title}
+                </span>
+              )}
+            </div>
+            <div className="w-20" />
+          </div>
+
+          {/* المحتوى الرئيسي */}
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 overflow-y-auto p-4 lg:flex-row lg:items-start lg:p-8">
+            {/* الجانب الأيمن: مشغل الفيديو / عدّاد الصفحات */}
+            <div className="flex w-full max-w-4xl flex-col items-center justify-center lg:w-3/5">
+              {theaterItem.lessons.length === 0 ? (
+                /* كتب / كورسات بدون دروس: عدّاد كبير */
+                <div className="flex flex-col items-center gap-6">
+                  <div className="flex items-center gap-8">
+                    <button
+                      className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.10] bg-white/[0.05] text-2xl font-black text-slate-300 backdrop-blur transition hover:border-orange-500/30 hover:text-orange-300"
+                      onClick={() => bump(theaterItem, -1)}
+                    >
+                      <Minus size={28} />
+                    </button>
+                    <div className="text-center">
+                      <div className="text-7xl font-black text-slate-100">
+                        {theaterItem.doneUnits}
+                      </div>
+                      <p className="mt-2 text-lg text-slate-500">
+                        من {theaterItem.totalUnits} {theaterItem.kind === 'book' ? 'صفحة' : 'وحدة'}
+                      </p>
+                    </div>
+                    <button
+                      className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/[0.10] bg-white/[0.05] text-2xl font-black text-slate-300 backdrop-blur transition hover:border-orange-500/30 hover:text-orange-300"
+                      onClick={() => bump(theaterItem, +1)}
+                    >
+                      <Plus size={28} />
+                    </button>
+                  </div>
+                  <ProgressBar
+                    value={pctOf(theaterItem)}
+                    className="w-full max-w-sm"
+                    color={theaterItem.kind === 'book' ? '#38bdf8' : '#a78bfa'}
+                  />
+                </div>
+              ) : theaterLesson && isYouTube(theaterItem.url) ? (
+                /* فيديو يوتيوب */
+                <div className="w-full">
+                  <div className="aspect-video w-full overflow-hidden rounded-2xl shadow-2xl">
+                    <iframe
+                      src={`https://www.youtube.com/embed/${youtubeVideoId(theaterItem.url)}?autoplay=1&rel=0`}
+                      className="h-full w-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title={theaterLesson.title}
+                    />
+                  </div>
+                  {/* التنقل بين الدروس */}
+                  <div className="mt-4 flex items-center justify-between gap-4">
+                    <button
+                      className="btn-ghost !px-4 !py-2 text-sm"
+                      onClick={theaterPrevLesson}
+                    >
+                      ‹ السابق
+                    </button>
+                    <span className="text-xs text-slate-500">
+                      {theaterItem.lessons.findIndex((l) => l.id === theaterLesson.id) + 1}
+                      {' '}/ {theaterItem.lessons.length}
+                    </span>
+                    <button
+                      className="btn-ghost !px-4 !py-2 text-sm"
+                      onClick={theaterNextLesson}
+                    >
+                      التالي ›
+                    </button>
+                  </div>
+                </div>
+              ) : theaterLesson ? (
+                /* كورس بدون رابط يوتيوب: عرض الدرس الحالي */
+                <div className="flex w-full flex-col items-center gap-4">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-violet-500/20 bg-violet-500/10 text-violet-300">
+                    <GraduationCap size={36} />
+                  </div>
+                  <p className="text-xl font-black text-slate-100">{theaterLesson.title}</p>
+                  <div className="flex items-center gap-4">
+                    <button
+                      className="btn-ghost !px-4 !py-2 text-sm"
+                      onClick={theaterPrevLesson}
+                    >
+                      ‹ السابق
+                    </button>
+                    <span className="text-xs text-slate-500">
+                      {theaterItem.lessons.findIndex((l) => l.id === theaterLesson.id) + 1}
+                      {' / '}{theaterItem.lessons.length}
+                    </span>
+                    <button
+                      className="btn-ghost !px-4 !py-2 text-sm"
+                      onClick={theaterNextLesson}
+                    >
+                      التالي ›
+                    </button>
+                  </div>
+                  <button
+                    className={cn(
+                      'btn-primary !px-6 !py-3 text-sm',
+                      theaterLesson.isDone && '!border-orange-500/30 !bg-orange-500/15 !text-orange-300'
+                    )}
+                    onClick={() => toggleLesson(theaterItem, theaterLesson)}
+                  >
+                    {theaterLesson.isDone ? '✓ تم' : 'إنجاز هذا الدرس'}
+                  </button>
+                </div>
+              ) : (
+                /* لا يوجد درس محدد */
+                <div className="flex flex-col items-center gap-4 text-slate-500">
+                  <GraduationCap size={48} />
+                  <p>اختر درساً من القائمة للبدء</p>
+                </div>
+              )}
+            </div>
+
+            {/* الجانب الأيسر: الملاحظات */}
+            {theaterLesson && (
+              <div className="w-full max-w-lg lg:w-2/5">
+                <GlassCard className="!p-4">
+                  <LessonNotesEditor
+                    lessonId={theaterLesson.id}
+                    initialNotes={theaterLesson.notes}
+                  />
+                  {theaterItem.url && isYouTube(theaterItem.url) && (
+                    <a
+                      href={theaterItem.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-2 text-xs font-bold text-slate-400 transition hover:text-orange-300"
+                    >
+                      <ExternalLink size={13} /> فتح في يوتيوب
+                    </a>
+                  )}
+                </GlassCard>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog />
     </div>

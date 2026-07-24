@@ -267,6 +267,7 @@ export interface LearningLesson {
   url: string | null;
   isDone: boolean;
   sortOrder: number;
+  notes: string | null;
   createdAt: string;
 }
 

@@ -19,6 +19,13 @@ export async function addLearningLessons(b: Body) {
 }
 
 export async function updateLearningLesson(id: string, b: Body) {
+  // الملاحظات تُحدَّث مباشرة عبر Supabase (RLS يراعي الملكية عبر الجدول الأب)
+  if (b.notes !== undefined) {
+    const notes = b.notes === null ? null : String(b.notes).slice(0, 10000);
+    unwrap(await supabase.from('LearningLesson').update({ notes }).eq('id', id));
+    return { ok: true };
+  }
+
   const args: Record<string, unknown> = { p_lesson_id: id };
   if (b.isDone !== undefined) {
     if (typeof b.isDone !== 'boolean') throw new ValidationError('حالة الدرس غير صالحة');

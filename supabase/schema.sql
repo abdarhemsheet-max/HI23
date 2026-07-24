@@ -335,6 +335,7 @@ create table "LearningLesson" (
   url text,
   "isDone" boolean not null default false,
   "sortOrder" integer not null default 0,
+  notes text,
   "createdAt" timestamptz not null default now()
 );
 
@@ -746,7 +747,12 @@ end;
 $$;
 
 -- ----- تعديل/إنجاز درس + مزامنة -----
-create or replace function update_learning_lesson(p_lesson_id uuid, p_is_done boolean default null, p_title text default null)
+create or replace function update_learning_lesson(
+  p_lesson_id uuid,
+  p_is_done boolean default null,
+  p_title text default null,
+  p_notes text default null
+)
 returns "LearningLesson" language plpgsql as $$
 declare
   v_lesson "LearningLesson";
@@ -758,7 +764,8 @@ begin
 
   update "LearningLesson" set
     "isDone" = coalesce(p_is_done, "isDone"),
-    title = coalesce(p_title, title)
+    title = coalesce(p_title, title),
+    notes = coalesce(p_notes, notes)
     where id = p_lesson_id returning * into v_lesson;
 
   perform sync_learning_item(v_lesson."itemId");
