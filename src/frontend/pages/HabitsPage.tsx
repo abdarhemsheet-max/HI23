@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, Suspense, lazy } from 'react';
 import {
   Plus,
   Trash2,
@@ -8,15 +8,18 @@ import {
   Circle,
   ListChecks,
   Pencil,
+  ListTodo,
 } from 'lucide-react';
 import { api, getCached } from '@/frontend/api';
 import { todayStr, weekStartStr, lastNDays, calcStreak, cn } from '@/shared/utils';
-import type { DailyTask, Habit, WeeklyFocus } from '@/shared/types';
+import type { DailyTask, Habit, WeeklyFocus, ProjectTask, Project } from '@/shared/types';
 import GlassCard from '@/frontend/components/ui/GlassCard';
 import Modal from '@/frontend/components/ui/Modal';
 import EmptyState from '@/frontend/components/ui/EmptyState';
 import ProgressBar from '@/frontend/components/ui/ProgressBar';
 import { useConfirm } from '@/frontend/hooks/useConfirm';
+
+const SortableTasks = lazy(() => import('@/frontend/components/SortableTasks'));
 
 const HABIT_ICONS = ['🔥', '📖', '🏃', '💧', '🧠', '🕌', '✍️', '💪', '🌅', '🎯'];
 
@@ -33,18 +36,24 @@ export default function HabitsPage() {
   const [tasks, setTasks] = useState<DailyTask[]>(() => getCached<DailyTask[]>('/api/crud/dailyTasks') ?? []);
   const [habits, setHabits] = useState<Habit[]>(() => getCached<Habit[]>('/api/crud/habits') ?? []);
   const [focusList, setFocusList] = useState<WeeklyFocus[]>(() => getCached<WeeklyFocus[]>('/api/crud/weeklyFocus') ?? []);
+  const [projects, setProjects] = useState<Project[]>(() => getCached<Project[]>('/api/crud/projects') ?? []);
+  const [allTasks, setAllTasks] = useState<ProjectTask[]>(() => getCached<ProjectTask[]>('/api/crud/projectTasks') ?? []);
   const [modal, setModal] = useState<null | 'task' | 'habit' | 'focus'>(null);
   const { confirm, ConfirmDialog } = useConfirm();
 
   const load = useCallback(async () => {
-    const [t, h, f] = await Promise.all([
+    const [t, h, f, p, pt] = await Promise.all([
       api<DailyTask[]>('/api/crud/dailyTasks'),
       api<Habit[]>('/api/crud/habits'),
       api<WeeklyFocus[]>('/api/crud/weeklyFocus'),
+      api<Project[]>('/api/crud/projects'),
+      api<ProjectTask[]>('/api/crud/projectTasks'),
     ]);
     if (t) setTasks(t);
     if (h) setHabits(h);
     if (f) setFocusList(f);
+    if (p) setProjects(p);
+    if (pt) setAllTasks(pt);
   }, []);
 
   useEffect(() => {
@@ -152,6 +161,44 @@ export default function HabitsPage() {
     if (ok) load();
   };
 
+  // ===== كافة المهام (من المشاريع) =====
+
+  const reorderAll = async (orderedIds: string[]) => {
+    const map = new Map(allTasks.map((t) => [t.id, t]));
+    setAllTasks(orderedIds.map((id) => map.get(id)!).filter(Boolean));
+    await api('/api/projects/reorder', { method: 'POST', body: { ids: orderedIds } });
+  };
+
+  const toggleAllTask = async (task: ProjectTask) => {
+    const done = !task.isCompleted;
+    setAllTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, isCompleted: done } : t))
+    );
+    await api(`/api/crud/projectTasks/${task.id}`, { method: 'PATCH', body: { isCompleted: done } });
+    load();
+  };
+
+  const deleteAllTask = async (task: ProjectTask) => {
+    const ok = await confirm({
+      title: 'حذف المهمة',
+      description: `سيُحذف المهمة «${task.title}» نهائياً.`,
+      danger: true,
+    });
+    if (!ok) return;
+    setAllTasks((prev) => prev.filter((t) => t.id !== task.id));
+    await api(`/api/crud/projectTasks/${task.id}`, { method: 'DELETE' });
+    load();
+  };
+
+  const activeTaskList = allTasks.filter((t) => {
+    const proj = projects.find((p) => p.id === t.projectId);
+    return proj?.status === 'active' && !t.isCompleted;
+  });
+
+  const entityByProjectId = new Map(
+    projects.filter((p) => p.entity).map((p) => [p.id, p.entity!.name])
+  );
+
   const week = lastNDays(7);
 
   return (
@@ -215,56 +262,8 @@ export default function HabitsPage() {
         )}
       </GlassCard>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        {/* ===== مهام اليوم ===== */}
-        <GlassCard className="!p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-black">✅ مهام اليوم</h3>
-              <p className="text-[10px] text-slate-500">المتكررة تتجدد تلقائياً كل يوم</p>
-            </div>
-            <button className="btn-primary !px-2.5 !py-1.5 text-xs" onClick={() => setModal('task')}>
-              <Plus size={13} /> مهمة
-            </button>
-          </div>
-          <ProgressBar value={todayTasks.length ? (doneCount / todayTasks.length) * 100 : 0} className="mb-4" />
-          {todayTasks.length === 0 ? (
-            <EmptyState icon={ListChecks} title="لا مهام لليوم" hint="أضف مهامك المتكررة أو مهمة لليوم فقط" />
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {todayTasks.map((t) => {
-                const done = t.logs.some((l) => l.date === today);
-                return (
-                  <div key={t.id} className="group flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-white/[0.04]">
-                    <button
-                      onClick={() => toggleTask(t, !done)}
-                      className={cn(
-                        'flex flex-1 items-center gap-2.5 py-1.5 text-right text-sm font-semibold transition',
-                        done ? 'text-slate-500 line-through' : 'text-slate-200'
-                      )}
-                    >
-                      {done ? (
-                        <CheckCircle2 size={18} className="shrink-0 text-orange-400" />
-                      ) : (
-                        <Circle size={18} className="shrink-0 text-slate-600" />
-                      )}
-                      {t.title}
-                      {t.kind === 'once' && <span className="chip bg-sky-500/10 text-sky-300">اليوم فقط</span>}
-                    </button>
-                    <button
-                      className="text-slate-700 opacity-0 transition group-hover:opacity-100 hover:!text-rose-400"
-                      onClick={() => del('dailyTasks', 'المهمة')(t.id)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </GlassCard>
-
-        {/* ===== العادات (Streaks) — تصميم مضغوط ===== */}
+      <div className="grid gap-4 lg:grid-cols-3 md:grid-cols-2">
+        {/* ===== العادات ===== */}
         <GlassCard className="!p-4">
           <div className="mb-3 flex items-center justify-between">
             <div>
@@ -290,7 +289,6 @@ export default function HabitsPage() {
                       <span className="text-lg">{h.icon}</span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-black leading-tight">{h.name}</p>
-                        {/* آخر 7 أيام — مصغّرة تحت الاسم مباشرة */}
                         <div className="mt-1 flex items-center gap-0.5">
                           {week.map((d) => (
                             <div
@@ -340,6 +338,80 @@ export default function HabitsPage() {
                   );
                 })}
             </div>
+          )}
+        </GlassCard>
+
+        {/* ===== مهام اليوم ===== */}
+        <GlassCard className="!p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-black">✅ مهام اليوم</h3>
+              <p className="text-[10px] text-slate-500">المتكررة تتجدد تلقائياً كل يوم</p>
+            </div>
+            <button className="btn-primary !px-2.5 !py-1.5 text-xs" onClick={() => setModal('task')}>
+              <Plus size={13} /> مهمة
+            </button>
+          </div>
+          <ProgressBar value={todayTasks.length ? (doneCount / todayTasks.length) * 100 : 0} className="mb-4" />
+          {todayTasks.length === 0 ? (
+            <EmptyState icon={ListChecks} title="لا مهام لليوم" hint="أضف مهامك المتكررة أو مهمة لليوم فقط" />
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {todayTasks.map((t) => {
+                const done = t.logs.some((l) => l.date === today);
+                return (
+                  <div key={t.id} className="group flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-white/[0.04]">
+                    <button
+                      onClick={() => toggleTask(t, !done)}
+                      className={cn(
+                        'flex flex-1 items-center gap-2.5 py-1.5 text-right text-sm font-semibold transition',
+                        done ? 'text-slate-500 line-through' : 'text-slate-200'
+                      )}
+                    >
+                      {done ? (
+                        <CheckCircle2 size={18} className="shrink-0 text-orange-400" />
+                      ) : (
+                        <Circle size={18} className="shrink-0 text-slate-600" />
+                      )}
+                      {t.title}
+                      {t.kind === 'once' && <span className="chip bg-sky-500/10 text-sky-300">اليوم فقط</span>}
+                    </button>
+                    <button
+                      className="text-slate-700 opacity-0 transition group-hover:opacity-100 hover:!text-rose-400"
+                      onClick={() => del('dailyTasks', 'المهمة')(t.id)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </GlassCard>
+
+        {/* ===== كافة المهام (من المشاريع) ===== */}
+        <GlassCard className="!p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-black">📋 كافة المهام</h3>
+              <p className="text-[10px] text-slate-500">مهام كل المشاريع النشطة — اسحب لترتيب الأولوية</p>
+            </div>
+            <span className="chip bg-white/[0.06] text-slate-400">
+              {activeTaskList.length} متبقية
+            </span>
+          </div>
+          {activeTaskList.length === 0 ? (
+            <EmptyState icon={ListTodo} title="لا مهام بعد" hint="أضف مهاماً داخل مشاريعك النشطة لتظهر هنا" />
+          ) : (
+            <Suspense fallback={<p className="py-8 text-center text-xs text-slate-500">جارٍ تحميل قائمة المهام…</p>}>
+              <SortableTasks
+                tasks={activeTaskList}
+                onReorder={reorderAll}
+                onToggle={toggleAllTask}
+                onDelete={deleteAllTask}
+                entityMap={entityByProjectId}
+              />
+            </Suspense>
           )}
         </GlassCard>
       </div>

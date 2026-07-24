@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Plus,
   Trash2,
@@ -11,7 +11,6 @@ import {
   Archive,
   FileSignature,
   RotateCcw,
-  ListTodo,
   FileCheck2,
   FileText,
   LayoutGrid,
@@ -26,17 +25,13 @@ import ProgressBar from '@/frontend/components/ui/ProgressBar';
 import { useConfirm } from '@/frontend/hooks/useConfirm';
 import ReportsPage from './ReportsPage';
 
-// Lazy load: مكتبة السحب والإفلات ثقيلة — تُحمّل فقط عند فتح تبويب المهام
-const SortableTasks = lazy(() => import('@/frontend/components/SortableTasks'));
-
 const COLORS = ['#a78bfa', '#38bdf8', '#f97316', '#fbbf24', '#fb7185', '#f472b6', '#22d3ee'];
 
-type WorkTab = 'projects' | 'tasks' | 'reports';
+type WorkTab = 'projects' | 'reports';
 type Filter = 'active' | 'finite' | 'ongoing' | 'archived';
 
 const WORK_TABS: { id: WorkTab; label: string; icon: React.ElementType }[] = [
   { id: 'projects', label: 'المشاريع', icon: LayoutGrid },
-  { id: 'tasks', label: 'المهام', icon: ListTodo },
   { id: 'reports', label: 'التقارير', icon: FileText },
 ];
 
@@ -56,19 +51,14 @@ export default function ProjectsPage() {
   const [newType, setNewType] = useState<'finite' | 'ongoing'>('finite');
   const [archived, setArchived] = useState<ProjectTask[] | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
-  const [allTasks, setAllTasks] = useState<ProjectTask[]>(
-    () => getCached<ProjectTask[]>('/api/crud/projectTasks') ?? []
-  );
 
   const load = useCallback(async () => {
-    const [p, e, t] = await Promise.all([
+    const [p, e] = await Promise.all([
       api<Project[]>('/api/crud/projects'),
       api<WorkEntity[]>('/api/crud/entities'),
-      api<ProjectTask[]>('/api/crud/projectTasks'),
     ]);
     if (p) setProjects(p);
     if (e) setEntities(e);
-    if (t) setAllTasks(t);
   }, []);
 
   useEffect(() => {
@@ -218,44 +208,6 @@ export default function ProjectsPage() {
     if (ok) load();
   };
 
-  // ===== تبويب «كافة المهام»: سحب وإفلات + تحديثات متفائلة =====
-
-  /** حفظ الترتيب الجديد — الواجهة تحدّثت فوراً، وهنا نثبّته في القاعدة */
-  const reorderAll = async (orderedIds: string[]) => {
-    // ترتيب متفائل للنسخة المحلية حتى لا ترتد عند إعادة التحميل
-    const map = new Map(allTasks.map((t) => [t.id, t]));
-    setAllTasks(orderedIds.map((id) => map.get(id)!).filter(Boolean));
-    await api('/api/projects/reorder', { method: 'POST', body: { ids: orderedIds } });
-  };
-
-  /** تبديل الإنجاز مع تحديث متفائل فوري */
-  const toggleAllTask = async (task: ProjectTask) => {
-    const done = !task.isCompleted;
-    setAllTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, isCompleted: done } : t))
-    );
-    await api(`/api/crud/projectTasks/${task.id}`, { method: 'PATCH', body: { isCompleted: done } });
-    load();
-  };
-
-  const deleteAllTask = async (task: ProjectTask) => {
-    const ok = await confirm({
-      title: 'حذف المهمة',
-      description: `سيُحذف المهمة «${task.title}» نهائياً.`,
-      danger: true,
-    });
-    if (!ok) return;
-    setAllTasks((prev) => prev.filter((t) => t.id !== task.id));
-    await api(`/api/crud/projectTasks/${task.id}`, { method: 'DELETE' });
-    load();
-  };
-
-  // كافة المهام غير المنجزة فقط من المشاريع النشطة — المنجزة تختفي فوراً من هذه اللوحة
-  const activeTaskList = allTasks.filter((t) => {
-    const proj = projects.find((p) => p.id === t.projectId);
-    return proj?.status === 'active' && !t.isCompleted;
-  });
-
   const FILTERS: { id: Filter; label: string }[] = [
     { id: 'active', label: 'النشطة' },
     { id: 'finite', label: 'منتهية المدة ⏱' },
@@ -279,7 +231,7 @@ export default function ProjectsPage() {
       </header>
 
       {/* بطاقات التبويبات — شبكة متساوية الأعمدة */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {WORK_TABS.map((t) => {
           const Icon = t.icon;
           const isActive = tab === t.id;
@@ -595,40 +547,7 @@ export default function ProjectsPage() {
           <button className="btn-primary">إنشاء المشروع</button>
         </form>
       </Modal>
-
-      <ConfirmDialog />
         </>
-      )}
-
-      {/* ============================================================ */}
-      {/* تبويب المهام (سحب وإفلات) */}
-      {/* ============================================================ */}
-      {tab === 'tasks' && (
-        <GlassCard>
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="section-title">📋 كافة المهام</h3>
-              <p className="text-[11px] text-slate-500">
-                مهام كل المشاريع النشطة في مكان واحد — اسحب <span className="text-slate-400">⠿</span> لإعادة الترتيب حسب الأولوية
-              </p>
-            </div>
-            <span className="chip bg-white/[0.06] text-slate-400">
-              {activeTaskList.length} متبقية
-            </span>
-          </div>
-          {activeTaskList.length === 0 ? (
-            <EmptyState icon={ListTodo} title="لا مهام بعد" hint="أضف مهاماً داخل مشاريعك النشطة لتظهر هنا" />
-          ) : (
-            <Suspense fallback={<p className="py-8 text-center text-xs text-slate-500">جارٍ تحميل قائمة المهام…</p>}>
-              <SortableTasks
-                tasks={activeTaskList}
-                onReorder={reorderAll}
-                onToggle={toggleAllTask}
-                onDelete={deleteAllTask}
-              />
-            </Suspense>
-          )}
-        </GlassCard>
       )}
 
       {/* ============================================================ */}

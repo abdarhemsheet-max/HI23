@@ -25,6 +25,8 @@ interface Props {
   onReorder: (orderedIds: string[]) => void;
   onToggle: (task: ProjectTask) => void;
   onDelete: (task: ProjectTask) => void;
+  /** خريطة projectId ← اسم جهة العمل لعرضه بجانب اسم المشروع */
+  entityMap?: Map<string, string>;
 }
 
 /** صف مهمة قابل للسحب */
@@ -32,10 +34,12 @@ function Row({
   task,
   onToggle,
   onDelete,
+  entityMap,
 }: {
   task: ProjectTask;
   onToggle: (t: ProjectTask) => void;
   onDelete: (t: ProjectTask) => void;
+  entityMap?: Map<string, string>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -85,6 +89,9 @@ function Row({
           <span className="flex items-center gap-1 text-[10px] font-bold" style={{ color }}>
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
             {task.project.name}
+            {entityMap?.has(task.project.id) && (
+              <span className="text-slate-500 font-normal">· {entityMap.get(task.project.id)}</span>
+            )}
           </span>
         )}
       </div>
@@ -104,7 +111,7 @@ function Row({
  * قائمة مهام بالسحب والإفلات (تحديث متفائل): الترتيب يتغيّر فوراً في الواجهة
  * ثم يُحفظ في الخلفية. تُبقي نسخة محلية متزامنة مع الوارد من الأعلى.
  */
-export default function SortableTasks({ tasks, onReorder, onToggle, onDelete }: Props) {
+export default function SortableTasks({ tasks, onReorder, onToggle, onDelete, entityMap }: Props) {
   const [items, setItems] = useState(tasks);
 
   // مزامنة مع أحدث بيانات من الخادم (بعد الإضافة/الحذف/التحديث)
@@ -132,7 +139,7 @@ export default function SortableTasks({ tasks, onReorder, onToggle, onDelete }: 
       <SortableContext items={items.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-1.5">
           {items.map((t) => (
-            <Row key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} />
+            <Row key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} entityMap={entityMap} />
           ))}
         </div>
       </SortableContext>
