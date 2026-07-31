@@ -285,3 +285,24 @@ export interface LearningItem {
   lessons: LearningLesson[];
   createdAt: string;
 }
+
+// ===== 8) معرض الأعمال =====
+export type WorkType = 'video' | 'post' | 'design' | 'website';
+
+export interface Work {
+  id: string;
+  title: string;
+  type: WorkType;
+  url: string;
+  /** غلاف مخصص — إن غاب تُشتق صورة يوتيوب تلقائياً في الواجهة */
+  coverUrl: string | null;
+  description: string | null;
+  platform: string;
+  workDate: string | null;
+  isPinned: boolean;
+  entityId: string | null;
+  entity?: WorkEntity | null;
+  projectId: string | null;
+  project?: { id: string; name: string; color: string } | null;
+  createdAt: string;
+}

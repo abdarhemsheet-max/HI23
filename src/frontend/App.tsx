@@ -13,6 +13,7 @@ import ManualReportEditorPage from './pages/ManualReportEditorPage';
 import DocumentsPage from './pages/DocumentsPage';
 import QuranPage from './pages/QuranPage';
 import LearningPage from './pages/LearningPage';
+import WorksPage from './pages/WorksPage';
 
 // HashRouter مقصود: يضمن عمل التوجيه بلا أي إعداد إضافي على GitHub Pages
 // (لا يوجد خادم لإعادة توجيه المسارات العميقة عند تحديث الصفحة أو الدخول
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/reports/manual/:id" element={<ManualReportEditorPage />} />
               <Route path="/reports/:id" element={<ReportViewPage />} />
+              <Route path="/works" element={<WorksPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/quran" element={<QuranPage />} />
               <Route path="/learning" element={<LearningPage />} />

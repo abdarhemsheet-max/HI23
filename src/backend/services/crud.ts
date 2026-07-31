@@ -17,6 +17,7 @@ import {
   oneOf,
   optBool,
   dayStr,
+  optDayStr,
   reqDate,
   optDate,
   optId,
@@ -41,6 +42,27 @@ export interface ResourceDef {
   /** تحويل ما بعد الجلب — للحالات التي لا تُترجم مباشرة لصياغة PostgREST */
   postProcess?: (rows: Row[]) => Row[] | Promise<Row[]>;
 }
+
+/**
+ * رابط http(s) صالح — يمنع تخزين قيم مثل javascript: التي ستُحقن لاحقاً
+ * في href داخل معرض الأعمال.
+ */
+function httpUrl(b: Body, key: string, label: string, required: boolean): string | null {
+  const raw = required ? reqStr(b, key, label, 1000) : optStr(b, key, 1000);
+  if (raw === null) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new ValidationError(`رابط «${label}» غير صالح — ابدأ بـ https://`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new ValidationError(`رابط «${label}» يجب أن يبدأ بـ http:// أو https://`);
+  }
+  return parsed.toString();
+}
+
+const WORK_TYPES = ['video', 'post', 'design', 'website'] as const;
 
 function safeJsonArray(v: unknown): string {
   if (!Array.isArray(v) || !v.every((x) => typeof x === 'string')) {
@@ -437,6 +459,41 @@ export const RESOURCES: Record<string, ResourceDef> = {
     update: (b) => ({
       ...(b.name !== undefined && { name: reqStr(b, 'name', 'اسم المجلد', 100) }),
     }),
+  },
+
+  // ===== معرض الأعمال =====
+  works: {
+    table: 'Work',
+    select: '*, entity:WorkEntity(*), project:Project(id,name,color)',
+    orderBy: [
+      { column: 'isPinned', ascending: false },
+      { column: 'createdAt', ascending: false },
+    ],
+    create: (b) => ({
+      title: reqStr(b, 'title', 'عنوان العمل', 200),
+      type: oneOf(b, 'type', WORK_TYPES, 'نوع العمل'),
+      url: httpUrl(b, 'url', 'العمل', true),
+      coverUrl: httpUrl(b, 'coverUrl', 'صورة الغلاف', false),
+      description: optStr(b, 'description'),
+      platform: optStr(b, 'platform', 100) ?? 'عام',
+      workDate: optDayStr(b, 'workDate'),
+      entityId: optId(b, 'entityId'),
+      projectId: optId(b, 'projectId'),
+    }),
+    update: (b) => {
+      const data: Row = {};
+      if (b.title !== undefined) data.title = reqStr(b, 'title', 'عنوان العمل', 200);
+      if (b.type !== undefined) data.type = oneOf(b, 'type', WORK_TYPES, 'نوع العمل');
+      if (b.url !== undefined) data.url = httpUrl(b, 'url', 'العمل', true);
+      if (b.coverUrl !== undefined) data.coverUrl = httpUrl(b, 'coverUrl', 'صورة الغلاف', false);
+      if (b.description !== undefined) data.description = optStr(b, 'description');
+      if (b.platform !== undefined) data.platform = optStr(b, 'platform', 100) ?? 'عام';
+      if (b.workDate !== undefined) data.workDate = optDayStr(b, 'workDate');
+      if (b.isPinned !== undefined) data.isPinned = optBool(b, 'isPinned');
+      if (b.entityId !== undefined) data.entityId = optId(b, 'entityId');
+      if (b.projectId !== undefined) data.projectId = optId(b, 'projectId');
+      return data;
+    },
   },
 };
 

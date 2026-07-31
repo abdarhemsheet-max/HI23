@@ -55,17 +55,19 @@ export interface StatsGridProps {
 }
 
 export default function StatsGrid({ stats, columns, className }: StatsGridProps) {
-  const cols = {
-    'grid-cols-1': true,
-    'sm:grid-cols-2': !columns?.sm || columns.sm === 2,
-    'md:grid-cols-3': columns?.md === 3,
-    'lg:grid-cols-3': !columns?.lg || columns.lg === 3,
-    'lg:grid-cols-4': columns?.lg === 4,
-    'xl:grid-cols-4': columns?.xl === 4,
-  };
+  // cn() يستقبل نصوصاً فقط — تمرير كائن هنا كان يُنتج "[object Object]"
+  // فتضيع أصناف الأعمدة ويبقى الشبكة عموداً واحداً على كل المقاسات
+  const cols = [
+    'grid-cols-1',
+    (!columns?.sm || columns.sm === 2) && 'sm:grid-cols-2',
+    columns?.md === 3 && 'md:grid-cols-3',
+    (!columns?.lg || columns.lg === 3) && 'lg:grid-cols-3',
+    columns?.lg === 4 && 'lg:grid-cols-4',
+    columns?.xl === 4 && 'xl:grid-cols-4',
+  ];
 
   return (
-    <div className={cn('grid gap-3', cols, className)}>
+    <div className={cn('grid gap-3', ...cols, className)}>
       {stats.map((stat, i) => <StatCard key={i} {...stat} />)}
     </div>
   );
