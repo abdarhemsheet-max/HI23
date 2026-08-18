@@ -105,15 +105,10 @@ export const RESOURCES: Record<string, ResourceDef> = {
       name: reqStr(b, 'name', 'اسم المحفظة', 100),
       type: oneOf(b, 'type', ['cash', 'bank'] as const, 'نوع المحفظة'),
       balance: optNum(b, 'balance', 0),
-      // محفظة أمانة = مال شخص آخر لديّ، لا يدخل في صافي ثروتي
-      isPersonal: optBool(b, 'isPersonal') ?? true,
-      ownerName: optStr(b, 'ownerName', 100),
     }),
     update: (b) => ({
       ...(b.name !== undefined && { name: reqStr(b, 'name', 'اسم المحفظة', 100) }),
       ...(b.balance !== undefined && { balance: optNum(b, 'balance', 0) }),
-      ...(b.isPersonal !== undefined && { isPersonal: optBool(b, 'isPersonal') }),
-      ...(b.ownerName !== undefined && { ownerName: optStr(b, 'ownerName', 100) }),
     }),
   },
 

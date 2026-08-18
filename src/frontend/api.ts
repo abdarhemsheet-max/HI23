@@ -7,7 +7,7 @@
 
 import { toMessage } from '@/backend/services/errors';
 import { listResource, createResource, updateResource, deleteResource } from '@/backend/services/crud';
-import { listTransactions, createTransaction, confirmPendingTransaction, deleteTransaction, settleDebt, paySubscription, transferBetweenWallets } from '@/backend/services/finance';
+import { listTransactions, createTransaction, confirmPendingTransaction, deleteTransaction, settleDebt, paySubscription } from '@/backend/services/finance';
 import { toggleLog } from '@/backend/services/habits';
 import { getQuranHeatmap, getMushafProgress, reviewSrsCard, getHosoonWeek, upsertHosoonField } from '@/backend/services/quran';
 import { reorderProjectTasks, setTaskReportFlag } from '@/backend/services/projects';
@@ -60,8 +60,6 @@ const ROUTES: { method: string; pattern: RegExp; handler: Handler }[] = [
   { method: 'POST', pattern: /^\/api\/crud\/([^/]+)$/, handler: ([resource], opts) => createResource(resource, asBody(opts.body)) },
   { method: 'PATCH', pattern: /^\/api\/crud\/([^/]+)\/([^/]+)$/, handler: ([resource, id], opts) => updateResource(resource, id, asBody(opts.body)) },
   { method: 'DELETE', pattern: /^\/api\/crud\/([^/]+)\/([^/]+)$/, handler: ([resource, id]) => deleteResource(resource, id).then(() => ({ ok: true })) },
-
-  { method: 'POST', pattern: /^\/api\/wallets\/transfer$/, handler: (_p, opts) => transferBetweenWallets(asBody(opts.body)) },
 
   { method: 'POST', pattern: /^\/api\/debts\/([^/]+)\/settle$/, handler: ([id], opts) => settleDebt(id, asBody(opts.body)) },
   { method: 'POST', pattern: /^\/api\/subscriptions\/([^/]+)\/pay$/, handler: ([id], opts) => paySubscription(id, asBody(opts.body)) },

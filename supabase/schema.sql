@@ -29,10 +29,6 @@ create table "Wallet" (
   name text not null,
   type text not null default 'cash' check (type in ('cash','bank')),
   balance numeric(14,2) not null default 0,
-  -- false = محفظة أمانة (مال شخص آخر لديّ) — تُستثنى من صافي ثروتي
-  "isPersonal" boolean not null default true,
-  -- صاحب المال في محافظ الأمانات (مثل: الوالد) — يصير اسم الدين عند السلفة
-  "ownerName" text,
   "createdAt" timestamptz not null default now()
 );
 
@@ -43,21 +39,12 @@ create table "Transaction" (
   status text not null default 'completed' check (status in ('completed','pending')),
   amount numeric(14,2) not null,
   category text not null default 'عام',
-  -- تصنيف مُقنّن للتحليل — 'transfer' يُستثنى دائماً من الدخل والمصروف
-  "categoryKey" text not null default 'general' check ("categoryKey" in (
-    'general','salary','petty_cash','allowance','trust_fund',
-    'transfer','debt','subscription','savings'
-  )),
   description text,
   date timestamptz not null default now(),
   "walletId" uuid references "Wallet"(id) on delete set null,
-  -- يربط طرفَي التحويل الداخلي في عملية واحدة تُحذف معاً
-  "transferId" uuid,
   "createdAt" timestamptz not null default now()
 );
 create index "Transaction_walletId_idx" on "Transaction"("walletId");
-create index "Transaction_transferId_idx" on "Transaction"("transferId");
-create index "Transaction_categoryKey_idx" on "Transaction"("categoryKey");
 
 create table "Debt" (
   id uuid primary key default gen_random_uuid(),
@@ -69,11 +56,8 @@ create table "Debt" (
   "dueDate" timestamptz,
   notes text,
   "isSettled" boolean not null default false,
-  -- الدين الناتج عن تحويل داخلي (سلفة) — يُحذف معه إن حُذف التحويل
-  "transferId" uuid,
   "createdAt" timestamptz not null default now()
 );
-create index "Debt_transferId_idx" on "Debt"("transferId");
 
 create table "Subscription" (
   id uuid primary key default gen_random_uuid(),
@@ -437,17 +421,13 @@ create policy "owner_all" on "LearningLesson" for all
 -- =====================================================================
 
 -- ----- تسديد/تحصيل دين -----
---  p_to_wallet_id (اختياري، للسداد فقط): محفظة تستقبل المبلغ المسدَّد —
---  تُستخدم لإرجاع سلفة إلى محفظة أمانة الوالد فيُغلق السيناريو كاملاً.
-create or replace function settle_debt(p_debt_id uuid, p_wallet_id uuid, p_to_wallet_id uuid default null)
+create or replace function settle_debt(p_debt_id uuid, p_wallet_id uuid)
 returns "Debt" language plpgsql as $$
 declare
   v_debt "Debt";
   v_wallet "Wallet";
-  v_to "Wallet";
   v_remaining numeric(14,2);
   v_collecting boolean;
-  v_transfer_id uuid;
 begin
   select * into v_debt from "Debt" where id = p_debt_id and "userId" = auth.uid() for update;
   if not found then raise exception 'الدين غير موجود — أعد تحميل الصفحة'; end if;
@@ -464,37 +444,18 @@ begin
     raise exception 'رصيد "%" غير كافٍ لسداد %', v_wallet.name, v_remaining;
   end if;
 
-  if p_to_wallet_id is not null then
-    if v_collecting then raise exception 'محفظة الوجهة تُستخدم عند السداد فقط'; end if;
-    if p_to_wallet_id = p_wallet_id then raise exception 'لا يمكن السداد إلى نفس المحفظة'; end if;
-    select * into v_to from "Wallet" where id = p_to_wallet_id and "userId" = auth.uid() for update;
-    if v_to.id is null then raise exception 'محفظة الوجهة غير موجودة'; end if;
-    v_transfer_id := gen_random_uuid();
-  end if;
-
-  insert into "Transaction"(type, status, amount, category, "categoryKey", description, "walletId", "transferId")
+  insert into "Transaction"(type, status, amount, category, description, "walletId")
   values (
     case when v_collecting then 'income' else 'expense' end,
     'completed',
     v_remaining,
     case when v_collecting then 'تحصيل دين' else 'سداد دين' end,
-    case when v_transfer_id is null then 'debt' else 'transfer' end,
     (case when v_collecting then 'تحصيل دين من ' else 'سداد دين إلى ' end) || v_debt."personName",
-    v_wallet.id,
-    v_transfer_id
+    v_wallet.id
   );
 
   update "Wallet" set balance = balance + (case when v_collecting then v_remaining else -v_remaining end)
     where id = v_wallet.id;
-
-  -- إرجاع المبلغ إلى محفظة الوجهة (أمانة الوالد مثلاً) — طرف مقابل محايد
-  if v_transfer_id is not null then
-    insert into "Transaction"(type, status, amount, category, "categoryKey", description, "walletId", "transferId")
-    values ('income', 'completed', v_remaining, 'تحويل داخلي', 'transfer',
-            'إرجاع سلفة ' || v_debt."personName" || ' (من ' || v_wallet.name || ')',
-            v_to.id, v_transfer_id);
-    update "Wallet" set balance = balance + v_remaining where id = v_to.id;
-  end if;
 
   update "Debt" set "isSettled" = true, "paidAmount" = v_debt.amount
     where id = v_debt.id returning * into v_debt;
@@ -538,11 +499,9 @@ end;
 $$;
 
 -- ----- إنشاء حركة مالية (دخل/مصروف/ربح معلق) + تحديث الرصيد -----
--- p_category_key: تصنيف مُقنّن للتحليل ('salary' مرتب، 'petty_cash' نثريات…)
 create or replace function create_transaction(
   p_type text, p_status text, p_amount numeric, p_category text,
-  p_description text, p_date timestamptz, p_wallet_id uuid,
-  p_category_key text default 'general'
+  p_description text, p_date timestamptz, p_wallet_id uuid
 ) returns "Transaction" language plpgsql as $$
 declare
   v_wallet "Wallet";
@@ -554,10 +513,6 @@ begin
   if p_status = 'completed' and p_wallet_id is null then
     raise exception 'اختر المحفظة — كل دخل أو مصروف يرتبط بمحفظة';
   end if;
-  -- 'transfer' محجوز لدالة التحويل الداخلي وحدها حتى تبقى الإحصاءات نظيفة
-  if coalesce(p_category_key, 'general') = 'transfer' then
-    raise exception 'تصنيف «تحويل داخلي» يُنشأ عبر التحويل بين المحافظ فقط';
-  end if;
 
   if p_wallet_id is not null then
     select * into v_wallet from "Wallet" where id = p_wallet_id and "userId" = auth.uid() for update;
@@ -567,9 +522,8 @@ begin
     end if;
   end if;
 
-  insert into "Transaction"(type, status, amount, category, "categoryKey", description, date, "walletId")
-  values (p_type, p_status, p_amount, coalesce(nullif(p_category, ''), 'عام'),
-          coalesce(nullif(p_category_key, ''), 'general'), p_description,
+  insert into "Transaction"(type, status, amount, category, description, date, "walletId")
+  values (p_type, p_status, p_amount, coalesce(nullif(p_category, ''), 'عام'), p_description,
           coalesce(p_date, now()), p_wallet_id)
   returning * into v_txn;
 
@@ -579,101 +533,6 @@ begin
   end if;
 
   return v_txn;
-end;
-$$;
-
--- ----- تحويل داخلي بين محفظتين (ذرّي: طرفان + تحديث رصيدين + دين اختياري) -----
---  p_mode:
---    'transfer' → تحويل محايد بين محافظي (لا يُحسب دخلاً ولا مصروفاً)
---    'debt'     → سلفة: يُنشئ ديناً "عليّ" باسم صاحب المحفظة المصدر
---    'gift'     → منحة/هدية: الطرف الداخل يُسجَّل دخلاً بتصنيف 'allowance'
-create or replace function transfer_between_wallets(
-  p_from_wallet_id uuid,
-  p_to_wallet_id uuid,
-  p_amount numeric,
-  p_note text default null,
-  p_mode text default 'transfer',
-  p_due_date timestamptz default null
-) returns json language plpgsql as $$
-declare
-  v_from "Wallet";
-  v_to "Wallet";
-  v_transfer_id uuid := gen_random_uuid();
-  v_out "Transaction";
-  v_in "Transaction";
-  v_debt "Debt";
-  v_person text;
-  v_label text;
-begin
-  if p_from_wallet_id is null or p_to_wallet_id is null then
-    raise exception 'اختر المحفظة المصدر والمحفظة الوجهة';
-  end if;
-  if p_from_wallet_id = p_to_wallet_id then
-    raise exception 'لا يمكن التحويل إلى نفس المحفظة';
-  end if;
-  if p_amount is null or p_amount <= 0 then
-    raise exception 'المبلغ يجب أن يكون أكبر من صفر';
-  end if;
-  if p_mode not in ('transfer', 'debt', 'gift') then
-    raise exception 'نوع التحويل غير مسموح';
-  end if;
-
-  -- قفل المحفظتين بترتيب ثابت حسب المعرّف — يمنع الـ deadlock عند التزامن
-  if p_from_wallet_id < p_to_wallet_id then
-    select * into v_from from "Wallet" where id = p_from_wallet_id and "userId" = auth.uid() for update;
-    select * into v_to   from "Wallet" where id = p_to_wallet_id   and "userId" = auth.uid() for update;
-  else
-    select * into v_to   from "Wallet" where id = p_to_wallet_id   and "userId" = auth.uid() for update;
-    select * into v_from from "Wallet" where id = p_from_wallet_id and "userId" = auth.uid() for update;
-  end if;
-
-  if v_from.id is null then raise exception 'المحفظة المصدر غير موجودة'; end if;
-  if v_to.id   is null then raise exception 'المحفظة الوجهة غير موجودة'; end if;
-  if v_from.balance < p_amount then
-    raise exception 'رصيد "%" غير كافٍ للتحويل (المتاح %)', v_from.name, v_from.balance;
-  end if;
-
-  v_person := coalesce(nullif(trim(coalesce(v_from."ownerName", '')), ''), v_from.name);
-  v_label := coalesce(nullif(trim(coalesce(p_note, '')), ''),
-    case p_mode
-      when 'debt' then 'سلفة من ' || v_person
-      when 'gift' then 'منحة من ' || v_person
-      else 'تحويل داخلي'
-    end);
-
-  -- الطرف الخارج — دائماً محايد ('transfer') فلا يتضخم إجمالي مصروفاتي
-  insert into "Transaction"(type, status, amount, category, "categoryKey", description, "walletId", "transferId")
-  values ('expense', 'completed', p_amount, 'تحويل داخلي', 'transfer',
-          v_label || ' (إلى ' || v_to.name || ')', v_from.id, v_transfer_id)
-  returning * into v_out;
-
-  -- الطرف الداخل — 'allowance' دخل حقيقي في حالة المنحة فقط، وإلا محايد
-  insert into "Transaction"(type, status, amount, category, "categoryKey", description, "walletId", "transferId")
-  values ('income', 'completed', p_amount,
-          case when p_mode = 'gift' then 'مصروف من ' || v_person else 'تحويل داخلي' end,
-          case when p_mode = 'gift' then 'allowance' else 'transfer' end,
-          v_label || ' (من ' || v_from.name || ')', v_to.id, v_transfer_id)
-  returning * into v_in;
-
-  update "Wallet" set balance = balance - p_amount where id = v_from.id;
-  update "Wallet" set balance = balance + p_amount where id = v_to.id;
-
-  if p_mode = 'debt' then
-    insert into "Debt"("personName", direction, amount, "dueDate", notes, "transferId")
-    values (v_person, 'i_owe', p_amount, p_due_date,
-            'سلفة من محفظة «' || v_from.name || '»' ||
-            case when nullif(trim(coalesce(p_note, '')), '') is not null then ' — ' || p_note else '' end,
-            v_transfer_id)
-    returning * into v_debt;
-  end if;
-
-  return json_build_object(
-    'transferId', v_transfer_id,
-    'mode',       p_mode,
-    'out',        row_to_json(v_out),
-    'in',         row_to_json(v_in),
-    'debt',       case when v_debt.id is null then null else row_to_json(v_debt) end
-  );
 end;
 $$;
 
@@ -704,40 +563,13 @@ end;
 $$;
 
 -- ----- حذف حركة مالية مع عكس أثرها على رصيد المحفظة -----
---  إن كانت الحركة طرفاً في تحويل داخلي، يُحذف الطرفان معاً (وكذلك الدين
---  غير المسدَّد الناتج عنه) في معاملة واحدة — فلا يبقى نصف تحويل معلّق.
 create or replace function delete_transaction(p_txn_id uuid)
 returns void language plpgsql as $$
 declare
   v_txn "Transaction";
-  v_leg "Transaction";
-  v_debt "Debt";
 begin
   select * into v_txn from "Transaction" where id = p_txn_id and "userId" = auth.uid() for update;
   if not found then return; end if;
-
-  if v_txn."transferId" is not null then
-    select * into v_debt from "Debt"
-      where "transferId" = v_txn."transferId" and "userId" = auth.uid() limit 1;
-    if found and v_debt."isSettled" then
-      raise exception 'هذا التحويل مرتبط بدين مسدَّد بالفعل — احذف الدين أولاً';
-    end if;
-
-    for v_leg in
-      select * from "Transaction"
-        where "transferId" = v_txn."transferId" and "userId" = auth.uid() for update
-    loop
-      if v_leg.status = 'completed' and v_leg."walletId" is not null then
-        update "Wallet"
-          set balance = balance - (case when v_leg.type = 'income' then v_leg.amount else -v_leg.amount end)
-          where id = v_leg."walletId";
-      end if;
-    end loop;
-
-    delete from "Debt" where "transferId" = v_txn."transferId" and "userId" = auth.uid();
-    delete from "Transaction" where "transferId" = v_txn."transferId" and "userId" = auth.uid();
-    return;
-  end if;
 
   if v_txn.status = 'completed' and v_txn."walletId" is not null then
     update "Wallet" set balance = balance - (case when v_txn.type = 'income' then v_txn.amount else -v_txn.amount end)

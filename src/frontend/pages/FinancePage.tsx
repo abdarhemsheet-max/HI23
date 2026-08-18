@@ -15,24 +15,10 @@ import {
   CheckCircle2,
   RefreshCw,
   Pencil,
-  ArrowLeftRight,
-  Zap,
-  ShieldCheck,
-  Scale,
 } from 'lucide-react';
 import { api, getCached } from '@/frontend/api';
-import { fmtMoney, fmtDateShort, todayStr, daysUntil, localMonth, dateStr, cn } from '@/shared/utils';
-import type {
-  Wallet,
-  Transaction,
-  Debt,
-  Subscription,
-  Asset,
-  SavingsGoal,
-  TxCategoryKey,
-  TransferMode,
-} from '@/shared/types';
-import { TX_CATEGORIES, TX_CATEGORY_LABELS } from '@/shared/types';
+import { fmtMoney, fmtDateShort, todayStr, daysUntil, localMonth, cn } from '@/shared/utils';
+import type { Wallet, Transaction, Debt, Subscription, Asset, SavingsGoal } from '@/shared/types';
 import GlassCard from '@/frontend/components/ui/GlassCard';
 import StatCard from '@/frontend/components/ui/StatCard';
 import Modal from '@/frontend/components/ui/Modal';
@@ -55,8 +41,7 @@ type ModalKind =
   | 'addToSaving'
   | 'settleDebt'
   | 'paySub'
-  | 'confirmTxn'
-  | 'transfer';
+  | 'confirmTxn';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'نظرة عامة' },
@@ -65,18 +50,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'subs', label: 'الاشتراكات' },
   { id: 'assets', label: 'الأصول' },
   { id: 'savings', label: 'الادخار والأهداف' },
-];
-
-/** أزرار النثريات السريعة — أكثر ما يتكرر يومياً */
-const PETTY_PRESETS = ['قهوة ☕', 'مواصلات 🚕', 'أكل 🍽️', 'تسوق 🛒', 'رصيد هاتف 📱', 'نثريات ✏️'];
-
-/** آخر محفظة استُخدمت للإدخال السريع — تُحفظ محلياً فلا تُختار كل مرة */
-const QUICK_WALLET_KEY = 'hi23:quickWallet';
-
-const TRANSFER_MODES: { id: TransferMode; label: string; hint: string }[] = [
-  { id: 'transfer', label: 'تحويل عادي', hint: 'نقل بين محافظي — محايد تماماً، لا يُحسب دخلاً ولا مصروفاً' },
-  { id: 'debt', label: 'سلفة (عليّ ردّها)', hint: 'يُنشأ دين «عليّ» باسم صاحب المحفظة المصدر تلقائياً' },
-  { id: 'gift', label: 'منحة / هدية', hint: 'يُحتسب دخلاً حقيقياً بتصنيف «مصروف من الوالد»' },
 ];
 
 /** تنفيذ دالة عند إرسال النموذج مع منع السلوك الافتراضي — متوافق مع React 18 */
@@ -91,13 +64,6 @@ export default function FinancePage() {
   const [modal, setModal] = useState<ModalKind>(null);
   const [editItem, setEditItem] = useState<Wallet | SavingsGoal | Debt | Subscription | Transaction | null>(null);
   const [txnKind, setTxnKind] = useState('income');
-  const [txnCategory, setTxnCategory] = useState<TxCategoryKey>('general');
-  const [transferMode, setTransferMode] = useState<TransferMode>('transfer');
-  const [walletOwnership, setWalletOwnership] = useState<'personal' | 'trust'>('personal');
-  // الإدخال السريع للنثريات
-  const [quickAmount, setQuickAmount] = useState('');
-  const [quickLabel, setQuickLabel] = useState(PETTY_PRESETS[0]);
-  const [quickWalletId, setQuickWalletId] = useState('');
   const { confirm, ConfirmDialog } = useConfirm();
   const { showBalances, togglePrivacy, moneyBlur } = usePrivacyMode();
 
@@ -131,61 +97,21 @@ export default function FinancePage() {
   }, [load]);
 
   // ===== إحصائيات =====
-  // قاعدة الحساب: تُحتسب الحركة ضمن دخلي/مصروفي فقط إن كانت في محفظة شخصية
-  // وليست تحويلاً داخلياً — فلا تتضخم الأرقام بأموال الأمانات ولا بنقل المال
-  // بين محافظي.
-  const personalWallets = wallets.filter((w) => w.isPersonal !== false);
-  const trustWallets = wallets.filter((w) => w.isPersonal === false);
-  const personalIds = new Set(personalWallets.map((w) => w.id));
-  const isMine = (t: Transaction) =>
-    t.categoryKey !== 'transfer' && (t.walletId === null || personalIds.has(t.walletId));
-
   const monthKey = todayStr().slice(0, 7);
-  const monthTxns = txns.filter(
-    (t) => t.status === 'completed' && localMonth(t.date) === monthKey && isMine(t)
-  );
+  const monthTxns = txns.filter((t) => t.status === 'completed' && localMonth(t.date) === monthKey);
   const income = monthTxns.filter((t) => t.type === 'income').reduce((a, t) => a + t.amount, 0);
   const expenses = monthTxns.filter((t) => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
-  const pettyTxns = monthTxns.filter((t) => t.categoryKey === 'petty_cash');
-  const petty = pettyTxns.reduce((a, t) => a + t.amount, 0);
-  const todayPetty = pettyTxns
-    .filter((t) => dateStr(new Date(t.date)) === todayStr())
-    .reduce((a, t) => a + t.amount, 0);
-  const salary = monthTxns
-    .filter((t) => t.type === 'income' && t.categoryKey === 'salary')
-    .reduce((a, t) => a + t.amount, 0);
   const pendingTxns = txns.filter((t) => t.status === 'pending');
   const pending = pendingTxns.reduce((a, t) => a + t.amount, 0);
-
-  const cash = personalWallets.filter((w) => w.type === 'cash').reduce((a, w) => a + w.balance, 0);
-  const bank = personalWallets.filter((w) => w.type === 'bank').reduce((a, w) => a + w.balance, 0);
-  const personalTotal = cash + bank;
-  const trustTotal = trustWallets.reduce((a, w) => a + w.balance, 0);
-  const assetsTotal = assets.reduce((a, x) => a + x.estimatedValue, 0);
-
+  const cash = wallets.filter((w) => w.type === 'cash').reduce((a, w) => a + w.balance, 0);
+  const bank = wallets.filter((w) => w.type === 'bank').reduce((a, w) => a + w.balance, 0);
   const owedToMe = debts.filter((d) => d.direction === 'owed_to_me' && !d.isSettled).reduce((a, d) => a + d.amount - d.paidAmount, 0);
   const iOwe = debts.filter((d) => d.direction === 'i_owe' && !d.isSettled).reduce((a, d) => a + d.amount - d.paidAmount, 0);
-  // صافي الثروة = أرصدتي الشخصية + ما لي عند الآخرين − ما عليّ (الأمانات خارجه)
-  const netWorth = personalTotal + owedToMe - iOwe;
-
   const walletName = (id: string | null) => wallets.find((w) => w.id === id)?.name;
-
-  // ضبط محفظة الإدخال السريع: آخر محفظة مستخدمة، وإلا أول محفظة كاش شخصية
-  useEffect(() => {
-    if (quickWalletId && personalIds.has(quickWalletId)) return;
-    const saved = localStorage.getItem(QUICK_WALLET_KEY);
-    const fallback = personalWallets.find((w) => w.type === 'cash') ?? personalWallets[0];
-    const next = saved && personalIds.has(saved) ? saved : fallback?.id ?? '';
-    if (next !== quickWalletId) setQuickWalletId(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallets]);
 
   // ===== إجراءات =====
   const addTxn = async (f: FormData) => {
     const kind = String(f.get('kind'));
-    const catKey = (String(f.get('categoryKey') || 'general') || 'general') as TxCategoryKey;
-    // الوصف الحر اختياري — إن تُرك فارغاً يُستخدم اسم التصنيف المُقنّن
-    const catText = String(f.get('category') || '').trim() || TX_CATEGORY_LABELS[catKey];
     const ok = await api('/api/transactions', {
       method: 'POST',
       ok: kind === 'pending' ? 'سُجّل الربح المعلق' : 'سُجّلت الحركة وتحدّث الرصيد',
@@ -193,63 +119,10 @@ export default function FinancePage() {
         type: kind === 'pending' ? 'income' : kind,
         status: kind === 'pending' ? 'pending' : 'completed',
         amount: Number(f.get('amount')),
-        category: catText,
-        categoryKey: catKey,
+        category: String(f.get('category') || ''),
         description: String(f.get('description') || ''),
         date: String(f.get('date') || todayStr()),
         walletId: String(f.get('walletId') || '') || null,
-      },
-    });
-    if (ok) {
-      setModal(null);
-      load();
-    }
-  };
-
-  /** إدخال سريع للنثريات — مبلغ + وصف مختصر ثم Enter، بلا نوافذ ولا خطوات */
-  const addQuick = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amount = Number(quickAmount);
-    if (!amount || amount <= 0 || !quickWalletId) return;
-    const ok = await api('/api/transactions', {
-      method: 'POST',
-      ok: `سُجّلت نثرية ${fmtMoney(amount)}`,
-      body: {
-        type: 'expense',
-        status: 'completed',
-        amount,
-        category: quickLabel,
-        categoryKey: 'petty_cash',
-        description: '',
-        date: todayStr(),
-        walletId: quickWalletId,
-      },
-    });
-    if (ok) {
-      localStorage.setItem(QUICK_WALLET_KEY, quickWalletId);
-      setQuickAmount('');
-      load();
-    }
-  };
-
-  /** تحويل داخلي بين محفظتين — ذرّي، ومع خيار تسجيله ديناً أو منحة */
-  const doTransfer = async (f: FormData) => {
-    const mode = transferMode;
-    const ok = await api('/api/wallets/transfer', {
-      method: 'POST',
-      ok:
-        mode === 'debt'
-          ? 'تم التحويل وسُجّل ديناً عليك'
-          : mode === 'gift'
-            ? 'تم التحويل وسُجّل دخلاً (منحة)'
-            : 'تم التحويل بين المحفظتين',
-      body: {
-        fromWalletId: String(f.get('fromWalletId') || ''),
-        toWalletId: String(f.get('toWalletId') || ''),
-        amount: Number(f.get('amount')),
-        note: String(f.get('note') || ''),
-        mode,
-        dueDate: String(f.get('dueDate') || '') || null,
       },
     });
     if (ok) {
@@ -278,15 +151,10 @@ export default function FinancePage() {
   const settleDebt = async (f: FormData) => {
     const d = editItem as Debt | null;
     if (!d) return;
-    const toWalletId = String(f.get('toWalletId') || '') || null;
     const ok = await api(`/api/debts/${d.id}/settle`, {
       method: 'POST',
-      ok: d.direction === 'owed_to_me'
-        ? 'حُصّل الدين وأُضيف للمحفظة'
-        : toWalletId
-          ? 'سُدّد الدين وعاد المبلغ إلى محفظة صاحبه'
-          : 'سُدّد الدين وخُصم من المحفظة',
-      body: { walletId: f.get('walletId'), toWalletId },
+      ok: d.direction === 'owed_to_me' ? 'حُصّل الدين وأُضيف للمحفظة' : 'سُدّد الدين وخُصم من المحفظة',
+      body: { walletId: f.get('walletId') },
     });
     if (ok) {
       setModal(null);
@@ -312,13 +180,9 @@ export default function FinancePage() {
   };
 
   const delTxn = async (id: string) => {
-    const t = txns.find((x) => x.id === id);
-    const isTransfer = t?.categoryKey === 'transfer';
     const ok1 = await confirm({
-      title: isTransfer ? 'حذف تحويل داخلي' : 'حذف الحركة المالية',
-      description: isTransfer
-        ? 'سيُحذف طرفا التحويل معاً ويعود رصيد المحفظتين كما كان — ويُحذف معه الدين الناتج عنه إن لم يكن مسدداً.'
-        : 'سيُعكس أثر هذه الحركة على رصيد المحفظة المرتبطة بها.',
+      title: 'حذف الحركة المالية',
+      description: 'سيُعكس أثر هذه الحركة على رصيد المحفظة المرتبطة بها.',
       danger: true,
     });
     if (!ok1) return;
@@ -330,13 +194,7 @@ export default function FinancePage() {
     const ok = await api('/api/crud/wallets', {
       method: 'POST',
       ok: 'أُنشئت المحفظة',
-      body: {
-        name: f.get('name'),
-        type: f.get('type'),
-        balance: Number(f.get('balance') || 0),
-        isPersonal: String(f.get('ownership') || 'personal') === 'personal',
-        ownerName: String(f.get('ownerName') || ''),
-      },
+      body: { name: f.get('name'), type: f.get('type'), balance: Number(f.get('balance') || 0) },
     });
     if (ok) {
       setModal(null);
@@ -465,7 +323,7 @@ export default function FinancePage() {
           </div>
           <PrivacyToggleButton visible={showBalances} onToggle={togglePrivacy} />
         </div>
-        <button className="btn-primary" onClick={() => { setTxnKind('income'); setTxnCategory('general'); setModal('txn'); }}>
+        <button className="btn-primary" onClick={() => { setTxnKind('income'); setModal('txn'); }}>
           <Plus size={16} /> حركة جديدة
         </button>
       </header>
@@ -492,104 +350,11 @@ export default function FinancePage() {
       {tab === 'overview' && (
         <>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <StatCard
-              title="الدخل (هذا الشهر)"
-              value={fmtMoney(income)}
-              icon={TrendingUp}
-              tone="orange"
-              sub={salary > 0 ? `منها مرتب ${fmtMoney(salary)}` : undefined}
-              blurred={!showBalances}
-            />
-            <StatCard
-              title="المصروفات (هذا الشهر)"
-              value={fmtMoney(expenses)}
-              icon={TrendingDown}
-              tone="rose"
-              sub={petty > 0 ? `منها نثريات ${fmtMoney(petty)}` : undefined}
-              blurred={!showBalances}
-            />
-            <StatCard title="صافي الشهر" value={fmtMoney(income - expenses)} icon={WalletIcon} tone={income - expenses >= 0 ? 'sky' : 'rose'} blurred={!showBalances} />
-            <StatCard title="النثريات (هذا الشهر)" value={fmtMoney(petty)} icon={Zap} tone="amber" sub={`${pettyTxns.length} حركة`} blurred={!showBalances} />
-            <StatCard
-              title="صافي الثروة"
-              value={fmtMoney(netWorth)}
-              icon={Scale}
-              tone={netWorth >= 0 ? 'orange' : 'rose'}
-              sub={assetsTotal > 0 ? `أرصدتي + الديون · وأصول بـ ${fmtMoney(assetsTotal)}` : 'أرصدتي الشخصية + لي − عليّ'}
-              blurred={!showBalances}
-            />
-            <StatCard title="أرصدتي الشخصية" value={fmtMoney(personalTotal)} icon={Banknote} tone="sky" sub={`${personalWallets.length} محفظة شخصية`} blurred={!showBalances} />
-            <StatCard
-              title="أمانات لديّ"
-              value={fmtMoney(trustTotal)}
-              icon={ShieldCheck}
-              tone="violet"
-              sub={trustWallets.length > 0 ? `${trustWallets.length} محفظة أمانة — خارج ثروتي` : 'لا محافظ أمانات'}
-              blurred={!showBalances}
-            />
+            <StatCard title="الدخل (هذا الشهر)" value={fmtMoney(income)} icon={TrendingUp} tone="orange" blurred={!showBalances} />
+            <StatCard title="المصروفات (هذا الشهر)" value={fmtMoney(expenses)} icon={TrendingDown} tone="rose" blurred={!showBalances} />
             <StatCard title="الأرباح المعلقة" value={fmtMoney(pending)} icon={Hourglass} tone="amber" sub="بانتظار التحصيل" blurred={!showBalances} />
+            <StatCard title="صافي الشهر" value={fmtMoney(income - expenses)} icon={WalletIcon} tone={income - expenses >= 0 ? 'sky' : 'rose'} blurred={!showBalances} />
           </div>
-
-          {/* ===== إدخال سريع للنثريات — مبلغ ثم Enter، بلا نوافذ ===== */}
-          <GlassCard className="border-amber-500/20">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="section-title flex items-center gap-2">
-                <Zap size={15} className="text-amber-300" /> إدخال سريع — نثريات
-              </h3>
-              <span className="text-[11px] text-slate-500">
-                نثريات اليوم: <b className={cn('text-amber-300', moneyBlur)}>{fmtMoney(todayPetty)}</b>
-              </span>
-            </div>
-            {personalWallets.length === 0 ? (
-              <p className="py-3 text-center text-xs text-slate-500">
-                أنشئ محفظة شخصية أولاً من تبويب «المحافظ»
-              </p>
-            ) : (
-              <form onSubmit={addQuick} className="flex flex-col gap-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {PETTY_PRESETS.map((label) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setQuickLabel(label)}
-                      className={cn(
-                        'rounded-lg border px-2.5 py-1 text-[11px] font-bold transition',
-                        quickLabel === label
-                          ? 'border-amber-500/40 bg-amber-500/15 text-amber-200'
-                          : 'border-white/[0.07] bg-white/[0.03] text-slate-400 hover:bg-white/[0.08]'
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    value={quickAmount}
-                    onChange={(e) => setQuickAmount(e.target.value)}
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    inputMode="decimal"
-                    placeholder="المبلغ…"
-                    className="input !w-auto min-w-[7rem] flex-1"
-                  />
-                  <select
-                    value={quickWalletId}
-                    onChange={(e) => setQuickWalletId(e.target.value)}
-                    className="input !w-auto min-w-[10rem]"
-                  >
-                    {personalWallets.map((w) => (
-                      <option key={w.id} value={w.id}>{w.name} ({fmtMoney(w.balance)})</option>
-                    ))}
-                  </select>
-                  <button className="btn-primary shrink-0" disabled={!quickAmount || Number(quickAmount) <= 0}>
-                    <Plus size={15} /> تسجيل «{quickLabel}»
-                  </button>
-                </div>
-              </form>
-            )}
-          </GlassCard>
 
           {pendingTxns.length > 0 && (
             <GlassCard className="border-amber-500/20">
@@ -622,49 +387,30 @@ export default function FinancePage() {
               <EmptyState icon={Banknote} title="لا توجد حركات بعد" hint="أضف أول حركة من زر «حركة جديدة»" />
             ) : (
               <div className="flex flex-col gap-1.5">
-                {txns.slice(0, 12).map((t) => {
-                  // التحويل الداخلي لا دخل ولا مصروف — يُعرض بلون محايد وسهم مزدوج
-                  const isTransfer = t.categoryKey === 'transfer';
-                  const keyLabel =
-                    t.categoryKey && t.categoryKey !== 'general' ? TX_CATEGORY_LABELS[t.categoryKey] : null;
-                  return (
+                {txns.slice(0, 12).map((t) => (
                   <div key={t.id} className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[0.04]">
                     <div className="flex items-center gap-3">
-                      <div className={cn('rounded-lg p-2',
-                        isTransfer
-                          ? 'bg-sky-500/10 text-sky-300'
-                          : t.type === 'income' ? 'bg-orange-500/10 text-orange-300' : 'bg-rose-500/10 text-rose-300')}>
-                        {isTransfer ? <ArrowLeftRight size={15} /> : t.type === 'income' ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
+                      <div className={cn('rounded-lg p-2', t.type === 'income' ? 'bg-orange-500/10 text-orange-300' : 'bg-rose-500/10 text-rose-300')}>
+                        {t.type === 'income' ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
                       </div>
                       <div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <p className="text-sm font-bold">{t.description || t.category}</p>
-                          {keyLabel && (
-                            <span className={cn('chip !px-2 !py-0.5 text-[10px]',
-                              isTransfer ? 'bg-sky-500/15 text-sky-300' : 'bg-white/[0.06] text-slate-400')}>
-                              {keyLabel}
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-sm font-bold">{t.description || t.category}</p>
                         <p className="text-[11px] text-slate-500">
                           {fmtDateShort(t.date)} · {t.category}
-                          {walletName(t.walletId) ? ` · ${walletName(t.walletId)}` : ''}
                           {t.status === 'pending' && <span className="text-amber-400"> · معلّق</span>}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={cn('text-sm font-black',
-                        isTransfer ? 'text-slate-400' : t.type === 'income' ? 'text-orange-300' : 'text-rose-300', moneyBlur)}>
-                        {isTransfer ? '' : t.type === 'income' ? '+' : '−'}{fmtMoney(t.amount)}
+                      <span className={cn('text-sm font-black', t.type === 'income' ? 'text-orange-300' : 'text-rose-300', moneyBlur)}>
+                        {t.type === 'income' ? '+' : '−'}{fmtMoney(t.amount)}
                       </span>
                       <button className="text-slate-700 opacity-0 transition group-hover:opacity-100 hover:!text-rose-400" onClick={() => delTxn(t.id)}>
                         <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
-                  );
-                })}
+                ))}
               </div>
             )}
           </GlassCard>
@@ -674,34 +420,16 @@ export default function FinancePage() {
       {/* ======================= المحافظ ======================= */}
       {tab === 'wallets' && (
         <>
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
-            <StatCard title="💵 كاش (نقدي)" value={fmtMoney(cash)} icon={Banknote} tone="orange" sub="شخصي فقط" blurred={!showBalances} />
-            <StatCard title="🏦 في المصرف" value={fmtMoney(bank)} icon={Landmark} tone="sky" sub="شخصي فقط" blurred={!showBalances} />
-            <StatCard title="🤝 أمانات لديّ" value={fmtMoney(trustTotal)} icon={ShieldCheck} tone="violet" sub="مال غيري — خارج ثروتي" blurred={!showBalances} />
+          <div className="grid grid-cols-2 gap-4">
+            <StatCard title="💵 كاش (نقدي)" value={fmtMoney(cash)} icon={Banknote} tone="orange" blurred={!showBalances} />
+            <StatCard title="🏦 في المصرف" value={fmtMoney(bank)} icon={Landmark} tone="sky" blurred={!showBalances} />
           </div>
-
-          <div className="flex justify-end">
-            <button
-              className="btn-ghost"
-              disabled={wallets.length < 2}
-              title={wallets.length < 2 ? 'تحتاج محفظتين على الأقل' : 'نقل مبلغ بين محفظتين'}
-              onClick={() => { setTransferMode('transfer'); setModal('transfer'); }}
-            >
-              <ArrowLeftRight size={16} /> تحويل داخلي
-            </button>
-          </div>
-
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {wallets.map((w) => {
-              const isTrust = w.isPersonal === false;
-              return (
-              <GlassCard key={w.id} hover className={cn('group', isTrust && 'border-violet-500/25')}>
+            {wallets.map((w) => (
+              <GlassCard key={w.id} hover className="group">
                 <div className="flex items-start justify-between">
-                  <div className={cn('rounded-xl border p-2.5',
-                    isTrust
-                      ? 'border-violet-500/20 bg-violet-500/10 text-violet-300'
-                      : w.type === 'cash' ? 'border-orange-500/20 bg-orange-500/10 text-orange-300' : 'border-sky-500/20 bg-sky-500/10 text-sky-300')}>
-                    {isTrust ? <ShieldCheck size={20} /> : w.type === 'cash' ? <Banknote size={20} /> : <Landmark size={20} />}
+                  <div className={cn('rounded-xl border p-2.5', w.type === 'cash' ? 'border-orange-500/20 bg-orange-500/10 text-orange-300' : 'border-sky-500/20 bg-sky-500/10 text-sky-300')}>
+                    {w.type === 'cash' ? <Banknote size={20} /> : <Landmark size={20} />}
                   </div>
                   <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
                     <button className="text-slate-500 hover:text-orange-300" onClick={() => { setEditItem(w); setModal('walletEdit'); }}>
@@ -712,22 +440,11 @@ export default function FinancePage() {
                     </button>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  <p className="text-sm font-bold text-slate-400">{w.name}</p>
-                  {isTrust && (
-                    <span className="chip !px-2 !py-0.5 bg-violet-500/15 text-[10px] text-violet-300">
-                      أمانة{w.ownerName ? ` · ${w.ownerName}` : ''}
-                    </span>
-                  )}
-                </div>
+                <p className="mt-3 text-sm font-bold text-slate-400">{w.name}</p>
                 <p className={cn('mt-1 text-2xl font-black', moneyBlur)}>{fmtMoney(w.balance)}</p>
-                <p className="mt-1 text-[11px] text-slate-600">
-                  {w.type === 'cash' ? 'نقدي' : 'حساب مصرفي'}
-                  {isTrust ? ' · لا يُحتسب ضمن ثروتي' : ''}
-                </p>
+                <p className="mt-1 text-[11px] text-slate-600">{w.type === 'cash' ? 'نقدي' : 'حساب مصرفي'}</p>
               </GlassCard>
-              );
-            })}
+            ))}
             <button onClick={() => setModal('wallet')} className="glass glass-hover flex min-h-[10rem] flex-col items-center justify-center gap-2 text-slate-500 hover:text-orange-300">
               <Plus size={24} />
               <span className="text-sm font-bold">محفظة جديدة</span>
@@ -953,31 +670,10 @@ export default function FinancePage() {
               <input name="amount" type="number" step="0.01" min="0.01" className="input" required placeholder="0.00" />
             </div>
           </div>
-          <div>
-            <label className="label">التصنيف</label>
-            <div className="flex flex-wrap gap-1.5">
-              {TX_CATEGORIES.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  onClick={() => setTxnCategory(c.key)}
-                  className={cn(
-                    'rounded-lg border px-2.5 py-1 text-[11px] font-bold transition',
-                    txnCategory === c.key
-                      ? 'border-orange-500/40 bg-orange-500/15 text-orange-200'
-                      : 'border-white/[0.07] bg-white/[0.03] text-slate-400 hover:bg-white/[0.08]'
-                  )}
-                >
-                  {c.icon} {c.label}
-                </button>
-              ))}
-            </div>
-            <input type="hidden" name="categoryKey" value={txnCategory} />
-          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">وصف التصنيف (اختياري)</label>
-              <input name="category" className="input" placeholder={TX_CATEGORY_LABELS[txnCategory]} />
+              <label className="label">التصنيف</label>
+              <input name="category" className="input" placeholder="راتب، تصميم، طعام…" />
             </div>
             <div>
               <label className="label">التاريخ</label>
@@ -1022,28 +718,6 @@ export default function FinancePage() {
               <input name="balance" type="number" step="0.01" min="0" className="input" defaultValue={0} />
             </div>
           </div>
-          <div>
-            <label className="label">ملكية المال</label>
-            <select
-              name="ownership"
-              className="input"
-              value={walletOwnership}
-              onChange={(e) => setWalletOwnership(e.target.value as 'personal' | 'trust')}
-            >
-              <option value="personal">مالي الشخصي 👤</option>
-              <option value="trust">أمانة — مال شخص آخر لديّ 🤝</option>
-            </select>
-          </div>
-          {walletOwnership === 'trust' && (
-            <div>
-              <label className="label">صاحب المال</label>
-              <input name="ownerName" className="input" required placeholder="الوالد…" />
-              <p className="mt-1.5 rounded-xl border border-violet-500/20 bg-violet-500/10 p-2.5 text-[11px] text-violet-200">
-                🤝 رصيد هذه المحفظة لن يدخل في «صافي ثروتي»، وحركاتها لا تُحسب ضمن دخلي
-                أو مصروفي. لأخذ مبلغ منها استخدم «تحويل داخلي» من تبويب المحافظ.
-              </p>
-            </div>
-          )}
           <button className="btn-primary">إنشاء المحفظة</button>
         </form>
       </Modal>
@@ -1188,76 +862,6 @@ export default function FinancePage() {
         </form>
       </Modal>
 
-      {/* ===== تحويل داخلي بين محفظتين ===== */}
-      <Modal open={modal === 'transfer'} onClose={() => setModal(null)} title="تحويل داخلي بين محفظتين">
-        <form onSubmit={onForm(doTransfer)} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">من محفظة</label>
-              <select name="fromWalletId" className="input" required defaultValue="">
-                <option value="">اختر…</option>
-                {wallets.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}{w.isPersonal === false ? ' (أمانة)' : ''} ({fmtMoney(w.balance)})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">إلى محفظة</label>
-              <select name="toWalletId" className="input" required defaultValue="">
-                <option value="">اختر…</option>
-                {wallets.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}{w.isPersonal === false ? ' (أمانة)' : ''} ({fmtMoney(w.balance)})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="label">المبلغ</label>
-            <input name="amount" type="number" step="0.01" min="0.01" className="input" required placeholder="0.00" />
-          </div>
-          <div>
-            <label className="label">طبيعة التحويل</label>
-            <div className="flex flex-col gap-1.5">
-              {TRANSFER_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setTransferMode(m.id)}
-                  className={cn(
-                    'rounded-xl border p-2.5 text-right transition',
-                    transferMode === m.id
-                      ? 'border-orange-500/40 bg-orange-500/10'
-                      : 'border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.07]'
-                  )}
-                >
-                  <p className={cn('text-xs font-bold', transferMode === m.id ? 'text-orange-200' : 'text-slate-300')}>
-                    {m.label}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">{m.hint}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-          {transferMode === 'debt' && (
-            <div>
-              <label className="label">تاريخ ردّ السلفة (اختياري)</label>
-              <input name="dueDate" type="date" className="input" />
-            </div>
-          )}
-          <div>
-            <label className="label">ملاحظة (اختياري)</label>
-            <input name="note" className="input" placeholder="سبب التحويل — تظهر في وصف الحركتين" />
-          </div>
-          <button className="btn-primary">
-            <ArrowLeftRight size={15} /> تنفيذ التحويل
-          </button>
-        </form>
-      </Modal>
-
       {/* ===== تسديد دين: اختيار المحفظة ===== */}
       <Modal
         open={modal === 'settleDebt'}
@@ -1282,29 +886,10 @@ export default function FinancePage() {
                 <select name="walletId" className="input" required defaultValue="">
                   <option value="">اختر المحفظة…</option>
                   {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}{w.isPersonal === false ? ' (أمانة)' : ''} ({fmtMoney(w.balance)})
-                    </option>
+                    <option key={w.id} value={w.id}>{w.name} ({fmtMoney(w.balance)})</option>
                   ))}
                 </select>
               </div>
-              {!collecting && trustWallets.length > 0 && (
-                <div>
-                  <label className="label">إرجاع المبلغ إلى محفظة (اختياري)</label>
-                  <select name="toWalletId" className="input" defaultValue="">
-                    <option value="">— يخرج من النظام (خصم فقط) —</option>
-                    {trustWallets.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name}{w.ownerName ? ` — ${w.ownerName}` : ''} ({fmtMoney(w.balance)})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1.5 text-[11px] text-slate-500">
-                    إن كنت تُعيد المال فعلياً إلى أمانة صاحبه، اختر محفظته — عندها ينتقل
-                    المبلغ بين المحفظتين بدل أن يختفي من النظام.
-                  </p>
-                </div>
-              )}
               <button className="btn-primary">
                 <HandCoins size={15} /> تأكيد التسديد
               </button>

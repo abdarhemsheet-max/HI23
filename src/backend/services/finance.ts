@@ -2,21 +2,8 @@
 import { supabase } from '../config/supabaseClient';
 import { unwrap } from './errors';
 import { ValidationError, oneOf, posNum, optStr, optDate, optId, reqStr } from '../validate';
-import type { TxCategoryKey } from '@/shared/types';
 
 type Body = Record<string, unknown>;
-
-/** التصنيفات المسموح بها يدوياً — 'transfer' محجوز لدالة التحويل الداخلي */
-const MANUAL_CATEGORY_KEYS = [
-  'general',
-  'salary',
-  'petty_cash',
-  'allowance',
-  'trust_fund',
-  'debt',
-  'subscription',
-  'savings',
-] as const satisfies readonly TxCategoryKey[];
 
 export async function listTransactions() {
   return unwrap(await supabase.from('Transaction').select('*').order('date', { ascending: false }));
@@ -33,9 +20,6 @@ export async function createTransaction(b: Body) {
   if (status === 'completed' && !walletId) {
     throw new ValidationError('اختر المحفظة — كل دخل أو مصروف يرتبط بمحفظة');
   }
-  const categoryKey = b.categoryKey === undefined || b.categoryKey === null || b.categoryKey === ''
-    ? 'general'
-    : oneOf(b, 'categoryKey', MANUAL_CATEGORY_KEYS, 'تصنيف الحركة');
 
   return unwrap(
     await supabase.rpc('create_transaction', {
@@ -43,7 +27,6 @@ export async function createTransaction(b: Body) {
       p_status: status,
       p_amount: amount,
       p_category: optStr(b, 'category') ?? 'عام',
-      p_category_key: categoryKey,
       p_description: optStr(b, 'description'),
       p_date: optDate(b, 'date') ?? new Date(),
       p_wallet_id: walletId,
@@ -61,46 +44,9 @@ export async function deleteTransaction(id: string) {
   unwrap(await supabase.rpc('delete_transaction', { p_txn_id: id }));
 }
 
-/**
- * تحويل داخلي بين محفظتين — طرفان ماليان + رصيدان + دين اختياري في معاملة واحدة.
- *   mode = 'transfer' → نقل محايد بين محافظي (لا دخل ولا مصروف)
- *   mode = 'debt'     → سلفة: يُنشأ دين "عليّ" باسم صاحب المحفظة المصدر
- *   mode = 'gift'     → منحة: الطرف الداخل يُحتسب دخلاً بتصنيف 'allowance'
- */
-export async function transferBetweenWallets(b: Body) {
-  const fromWalletId = reqStr(b, 'fromWalletId', 'المحفظة المصدر', 100);
-  const toWalletId = reqStr(b, 'toWalletId', 'المحفظة الوجهة', 100);
-  if (fromWalletId === toWalletId) {
-    throw new ValidationError('لا يمكن التحويل إلى نفس المحفظة');
-  }
-  const mode = oneOf(b, 'mode', ['transfer', 'debt', 'gift'] as const, 'نوع التحويل');
-
-  return unwrap(
-    await supabase.rpc('transfer_between_wallets', {
-      p_from_wallet_id: fromWalletId,
-      p_to_wallet_id: toWalletId,
-      p_amount: posNum(b, 'amount', 'المبلغ'),
-      p_note: optStr(b, 'note', 300),
-      p_mode: mode,
-      p_due_date: mode === 'debt' ? optDate(b, 'dueDate') : null,
-    })
-  );
-}
-
-/** تسديد دين — toWalletId اختياري: يُرجع المبلغ إلى محفظة أمانة صاحب الدين */
 export async function settleDebt(debtId: string, b: Body) {
   const walletId = reqStr(b, 'walletId', 'المحفظة', 100);
-  const toWalletId = optId(b, 'toWalletId');
-  if (toWalletId && toWalletId === walletId) {
-    throw new ValidationError('لا يمكن السداد إلى نفس المحفظة');
-  }
-  return unwrap(
-    await supabase.rpc('settle_debt', {
-      p_debt_id: debtId,
-      p_wallet_id: walletId,
-      p_to_wallet_id: toWalletId,
-    })
-  );
+  return unwrap(await supabase.rpc('settle_debt', { p_debt_id: debtId, p_wallet_id: walletId }));
 }
 
 export async function paySubscription(subId: string, b: Body) {

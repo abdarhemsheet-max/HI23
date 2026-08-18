@@ -37,7 +37,6 @@ src/
 └── shared/                  ← أنواع ودوال مشتركة بين الطرفين (بلا تغيير)
 
 supabase/schema.sql          ← مخطط قاعدة البيانات + سياسات RLS + دوال RPC
-supabase/migrations/         ← ملفات ترحيل تُشغَّل على قاعدة قائمة (بالترتيب الزمني)
 scripts/migrate-to-cloud.mjs ← هجرة بيانات dev.db القديمة إلى Supabase/B2 (لمرة واحدة)
 .github/workflows/deploy.yml ← بناء ونشر تلقائي على GitHub Pages
 ```
@@ -47,9 +46,8 @@ scripts/migrate-to-cloud.mjs ← هجرة بيانات dev.db القديمة إ�
 ### 1) Supabase
 1. أنشئ مشروعاً جديداً على [supabase.com](https://supabase.com).
 2. افتح **SQL Editor** والصق محتوى [`supabase/schema.sql`](supabase/schema.sql) بالكامل ثم Run — ينشئ كل الجداول وسياسات الحماية ودوال RPC دفعة واحدة.
-3. إن كانت قاعدتك منشأة من قبل، شغّل ملفات [`supabase/migrations/`](supabase/migrations) الأحدث من تاريخ إنشائها بالترتيب — كلها آمنة للتكرار.
-4. من **Authentication → Users → Add user** أنشئ حسابك (بريد + كلمة مرور) — هو المستخدم الوحيد المصرَّح له بالدخول.
-5. من **Project Settings → API** انسخ `Project URL` و `anon public key`.
+3. من **Authentication → Users → Add user** أنشئ حسابك (بريد + كلمة مرور) — هو المستخدم الوحيد المصرَّح له بالدخول.
+4. من **Project Settings → API** انسخ `Project URL` و `anon public key`.
 
 ### 2) Backblaze B2
 1. أنشئ حاوية (Bucket) جديدة — **Private** موصى به (الروابط تُولَّد بتصريح مؤقت من التطبيق، لا حاجة لجعلها Public).
