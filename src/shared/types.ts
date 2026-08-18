@@ -6,8 +6,50 @@ export interface Wallet {
   name: string;
   type: 'cash' | 'bank';
   balance: number;
+  /** false = محفظة أمانة (مال شخص آخر لديّ) — تُستثنى من صافي ثروتي */
+  isPersonal: boolean;
+  /** صاحب المال في محافظ الأمانات (مثل: الوالد) */
+  ownerName: string | null;
   createdAt: string;
 }
+
+/** تصنيف مُقنّن للحركة — 'transfer' يُستثنى دائماً من الدخل والمصروف */
+export type TxCategoryKey =
+  | 'general'
+  | 'salary'
+  | 'petty_cash'
+  | 'allowance'
+  | 'trust_fund'
+  | 'transfer'
+  | 'debt'
+  | 'subscription'
+  | 'savings';
+
+/** التصنيفات القابلة للاختيار يدوياً في نموذج الحركة */
+export const TX_CATEGORIES: { key: TxCategoryKey; label: string; icon: string }[] = [
+  { key: 'salary', label: 'مرتب', icon: '💼' },
+  { key: 'petty_cash', label: 'نثريات', icon: '☕' },
+  { key: 'allowance', label: 'مصروف من الوالد', icon: '🎁' },
+  { key: 'trust_fund', label: 'أمانة', icon: '🤝' },
+  { key: 'savings', label: 'ادخار', icon: '🐷' },
+  { key: 'general', label: 'عام', icon: '📌' },
+];
+
+/** تسميات كل المفاتيح — تشمل ما تنشئه دوال RPC تلقائياً */
+export const TX_CATEGORY_LABELS: Record<TxCategoryKey, string> = {
+  general: 'عام',
+  salary: 'مرتب',
+  petty_cash: 'نثريات',
+  allowance: 'مصروف من الوالد',
+  trust_fund: 'أمانة',
+  transfer: 'تحويل داخلي',
+  debt: 'دين',
+  subscription: 'اشتراك',
+  savings: 'ادخار',
+};
+
+/** نوع التحويل الداخلي بين محفظتين */
+export type TransferMode = 'transfer' | 'debt' | 'gift';
 
 export interface Transaction {
   id: string;
@@ -15,9 +57,12 @@ export interface Transaction {
   status: 'completed' | 'pending';
   amount: number;
   category: string;
+  categoryKey: TxCategoryKey;
   description: string | null;
   date: string;
   walletId: string | null;
+  /** يربط طرفَي التحويل الداخلي — الحركتان تُحذفان معاً */
+  transferId: string | null;
   createdAt: string;
 }
 
@@ -30,6 +75,8 @@ export interface Debt {
   dueDate: string | null;
   notes: string | null;
   isSettled: boolean;
+  /** الدين ناتج عن سلفة من محفظة أمانة */
+  transferId: string | null;
   createdAt: string;
 }
 
