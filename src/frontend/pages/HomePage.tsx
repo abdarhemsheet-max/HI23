@@ -73,10 +73,16 @@ export default function HomePage() {
   };
 
   // ===== حسابات =====
-  const totalBalance = s?.wallets.reduce((a, w) => a + w.balance, 0) ?? 0;
+  // الرصيد الشخصي فقط — محافظ الأمانات (مال غيري) تُعرض منفصلة
+  const personalWallets = (s?.wallets ?? []).filter((w) => w.isPersonal !== false);
+  const trustWallets = (s?.wallets ?? []).filter((w) => w.isPersonal === false);
+  const totalBalance = personalWallets.reduce((a, w) => a + w.balance, 0);
+  const trustBalance = trustWallets.reduce((a, w) => a + w.balance, 0);
   const income = s?.monthTxns.filter((t) => t.type === 'income').reduce((a, t) => a + t.amount, 0) ?? 0;
   const expenses = s?.monthTxns.filter((t) => t.type === 'expense').reduce((a, t) => a + t.amount, 0) ?? 0;
   const pending = s?.pendingTxns.reduce((a, t) => a + t.amount, 0) ?? 0;
+  // دخل متوقّع مرّ موعده ولم يصل — المرتب المتأخر مثلاً
+  const lateCount = (s?.pendingTxns ?? []).filter((t) => t.expectedDate && daysUntil(t.expectedDate) < 0).length;
 
   const todayTasks = (s?.tasks ?? []).filter(
     (t) => t.kind === 'recurring' || t.date === s?.today
@@ -106,10 +112,10 @@ export default function HomePage() {
 
       {/* ===== بطاقات مالية سريعة ===== */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard title="الرصيد الإجمالي" value={s ? fmtMoney(totalBalance) : '…'} icon={WalletIcon} tone="orange" sub={`${s?.wallets.length ?? 0} محفظة`} blurred={!showBalances} />
+        <StatCard title="الرصيد الإجمالي" value={s ? fmtMoney(totalBalance) : '…'} icon={WalletIcon} tone="orange" sub={trustBalance > 0 ? `${personalWallets.length} محفظة · أمانات ${fmtMoney(trustBalance)}` : `${personalWallets.length} محفظة`} blurred={!showBalances} />
         <StatCard title="دخل هذا الشهر" value={s ? fmtMoney(income) : '…'} icon={TrendingUp} tone="sky" blurred={!showBalances} />
         <StatCard title="مصروفات الشهر" value={s ? fmtMoney(expenses) : '…'} icon={TrendingDown} tone="rose" blurred={!showBalances} />
-        <StatCard title="أرباح معلقة" value={s ? fmtMoney(pending) : '…'} icon={Hourglass} tone="amber" sub="بانتظار التحصيل" blurred={!showBalances} />
+        <StatCard title="دخل بانتظار الوصول" value={s ? fmtMoney(pending) : '…'} icon={Hourglass} tone={lateCount > 0 ? 'rose' : 'amber'} sub={lateCount > 0 ? `${lateCount} متأخر عن موعده` : 'لم يصل بعد'} blurred={!showBalances} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">

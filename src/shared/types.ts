@@ -6,8 +6,99 @@ export interface Wallet {
   name: string;
   type: 'cash' | 'bank';
   balance: number;
+  /** false = محفظة أمانة (مال شخص آخر لديّ) — تُستثنى من صافي ثروتي */
+  isPersonal: boolean;
+  /** صاحب المال في محافظ الأمانات (مثل: الوالد) */
+  ownerName: string | null;
   createdAt: string;
 }
+
+/** تصنيف مُقنّن للحركة — 'transfer' يُستثنى دائماً من الدخل والمصروف */
+export type TxCategoryKey =
+  | 'general'
+  // دخل
+  | 'salary'
+  | 'side_income'
+  | 'sale'
+  | 'gift'
+  | 'family_support'
+  | 'allowance'
+  // مصروف
+  | 'petty_cash'
+  | 'food'
+  | 'transport'
+  | 'bills'
+  | 'health'
+  | 'family_care'
+  | 'savings'
+  // يضعها النظام تلقائياً
+  | 'trust_fund'
+  | 'transfer'
+  | 'debt'
+  | 'subscription';
+
+export interface TxCategory {
+  key: TxCategoryKey;
+  label: string;
+  icon: string;
+}
+
+/** تصنيفات الدخل — تظهر عند اختيار «دخل» أو «دخل متوقّع» */
+export const INCOME_CATEGORIES: TxCategory[] = [
+  { key: 'salary', label: 'مرتب', icon: '💼' },
+  { key: 'side_income', label: 'شغل حر', icon: '🛠️' },
+  { key: 'sale', label: 'بيع شيء', icon: '🏷️' },
+  { key: 'allowance', label: 'مصروف من الوالد', icon: '🎁' },
+  { key: 'family_support', label: 'مساعدة من الأهل', icon: '🤲' },
+  { key: 'gift', label: 'هدية', icon: '💝' },
+  { key: 'trust_fund', label: 'أمانة', icon: '🤝' },
+  { key: 'general', label: 'عام', icon: '📌' },
+];
+
+/** تصنيفات المصروف — وهي نفسها التي يمكن وضع سقف شهري لها */
+export const EXPENSE_CATEGORIES: TxCategory[] = [
+  { key: 'petty_cash', label: 'نثريات', icon: '☕' },
+  { key: 'food', label: 'أكل', icon: '🍽️' },
+  { key: 'transport', label: 'مواصلات', icon: '🚕' },
+  { key: 'bills', label: 'فواتير وإنترنت', icon: '🧾' },
+  { key: 'health', label: 'صحة', icon: '💊' },
+  { key: 'family_care', label: 'مصروف الأهل', icon: '🏠' },
+  { key: 'savings', label: 'ادخار', icon: '🐷' },
+  { key: 'general', label: 'عام', icon: '📌' },
+];
+
+/** تسميات كل المفاتيح — تشمل ما تنشئه دوال RPC تلقائياً */
+export const TX_CATEGORY_LABELS: Record<TxCategoryKey, string> = {
+  general: 'عام',
+  salary: 'مرتب',
+  side_income: 'شغل حر',
+  sale: 'بيع شيء',
+  gift: 'هدية',
+  family_support: 'مساعدة من الأهل',
+  allowance: 'مصروف من الوالد',
+  petty_cash: 'نثريات',
+  food: 'أكل',
+  transport: 'مواصلات',
+  bills: 'فواتير وإنترنت',
+  health: 'صحة',
+  family_care: 'مصروف الأهل',
+  savings: 'ادخار',
+  trust_fund: 'أمانة',
+  transfer: 'تحويل داخلي',
+  debt: 'دين',
+  subscription: 'اشتراك',
+};
+
+/** سقف إنفاق شهري لتصنيف واحد */
+export interface Budget {
+  id: string;
+  categoryKey: TxCategoryKey;
+  monthlyLimit: number;
+  createdAt: string;
+}
+
+/** نوع التحويل الداخلي بين محفظتين */
+export type TransferMode = 'transfer' | 'debt' | 'gift';
 
 export interface Transaction {
   id: string;
@@ -15,9 +106,14 @@ export interface Transaction {
   status: 'completed' | 'pending';
   amount: number;
   category: string;
+  categoryKey: TxCategoryKey;
   description: string | null;
   date: string;
+  /** الدخل المتوقّع: متى كان يُفترض وصوله — الفارق عن date هو التأخير */
+  expectedDate: string | null;
   walletId: string | null;
+  /** يربط طرفَي التحويل الداخلي — الحركتان تُحذفان معاً */
+  transferId: string | null;
   createdAt: string;
 }
 
@@ -30,6 +126,8 @@ export interface Debt {
   dueDate: string | null;
   notes: string | null;
   isSettled: boolean;
+  /** الدين ناتج عن سلفة من محفظة أمانة */
+  transferId: string | null;
   createdAt: string;
 }
 

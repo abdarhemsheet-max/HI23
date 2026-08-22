@@ -23,8 +23,13 @@ import {
   optId,
 } from '../validate';
 
+import { EXPENSE_CATEGORIES } from '@/shared/types';
+
 type Body = Record<string, unknown>;
 type Row = Record<string, unknown>;
+
+/** التصنيفات التي يجوز وضع سقف شهري لها — تصنيفات المصروف وحدها */
+const BUDGET_KEYS = EXPENSE_CATEGORIES.map((c) => c.key);
 
 interface OrderSpec {
   column: string;
@@ -105,10 +110,15 @@ export const RESOURCES: Record<string, ResourceDef> = {
       name: reqStr(b, 'name', 'اسم المحفظة', 100),
       type: oneOf(b, 'type', ['cash', 'bank'] as const, 'نوع المحفظة'),
       balance: optNum(b, 'balance', 0),
+      // محفظة أمانة = مال شخص آخر لديّ، لا يدخل في صافي ثروتي
+      isPersonal: optBool(b, 'isPersonal') ?? true,
+      ownerName: optStr(b, 'ownerName', 100),
     }),
     update: (b) => ({
       ...(b.name !== undefined && { name: reqStr(b, 'name', 'اسم المحفظة', 100) }),
       ...(b.balance !== undefined && { balance: optNum(b, 'balance', 0) }),
+      ...(b.isPersonal !== undefined && { isPersonal: optBool(b, 'isPersonal') }),
+      ...(b.ownerName !== undefined && { ownerName: optStr(b, 'ownerName', 100) }),
     }),
   },
 
@@ -171,6 +181,20 @@ export const RESOURCES: Record<string, ResourceDef> = {
     }),
     update: (b) => ({
       ...(b.currentAmount !== undefined && { currentAmount: optNum(b, 'currentAmount', 0) }),
+    }),
+  },
+
+  budgets: {
+    table: 'Budget',
+    orderBy: [{ column: 'createdAt', ascending: true }],
+    // سقف واحد لكل تصنيف — إعادة الضبط تحدّث الصف بدل أن تفشل
+    upsertOn: 'categoryKey',
+    create: (b) => ({
+      categoryKey: oneOf(b, 'categoryKey', BUDGET_KEYS, 'التصنيف'),
+      monthlyLimit: posNum(b, 'monthlyLimit', 'السقف الشهري'),
+    }),
+    update: (b) => ({
+      ...(b.monthlyLimit !== undefined && { monthlyLimit: posNum(b, 'monthlyLimit', 'السقف الشهري') }),
     }),
   },
 
