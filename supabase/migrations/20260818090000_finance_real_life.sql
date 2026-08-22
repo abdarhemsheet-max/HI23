@@ -19,6 +19,18 @@
 --  طريقة التشغيل: Supabase Dashboard → SQL Editor → New query → Run.
 -- =====================================================================
 
+-- ---------------------------------------------------------------------
+--  حارس المشروع الصحيح — يُنفَّذ أولاً ويوقف كل شيء إن كنت في قاعدة أخرى.
+--  سببه: إن كان لديك أكثر من مشروع Supabase، فاللصق في المشروع الخطأ
+--  ينشئ جداول في غير مكانها بصمت. هنا يفشل فوراً برسالة واضحة بدل ذلك.
+-- ---------------------------------------------------------------------
+do $$
+begin
+  if to_regclass('public."Wallet"') is null then
+    raise exception E'\n\n  ✋ قاعدة خاطئة — جدول "Wallet" غير موجود هنا.\n     أنت في مشروع Supabase آخر. افتح مشروع «نظام حياتي» ثم أعد المحاولة.\n     لم يُنفَّذ أي تعديل.\n';
+  end if;
+end $$;
+
 -- ------------------------------------------------------------------
 -- 1) المحافظ: تمييز المحفظة الشخصية عن محفظة الأمانة
 -- ------------------------------------------------------------------
@@ -431,3 +443,22 @@ begin
   return v_txn;
 end;
 $$;
+
+-- تحديث كاش الواجهة (PostgREST) فوراً بدل انتظار التحديث التلقائي
+notify pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------
+--  تقرير النتيجة — يظهر في جدول أسفل محرر SQL. كل القيم يجب أن تكون true
+-- ---------------------------------------------------------------------
+select
+  to_regclass('public."Budget"') is not null                             as "جدول السقوف",
+  (select count(*) = 1 from information_schema.columns
+     where table_name = 'Wallet' and column_name = 'isPersonal')         as "محافظ الأمانات",
+  (select count(*) = 1 from information_schema.columns
+     where table_name = 'Transaction' and column_name = 'expectedDate')  as "الدخل المتأخر",
+  (select count(*) = 1 from information_schema.columns
+     where table_name = 'Transaction' and column_name = 'categoryKey')   as "التصنيفات",
+  (select count(*) = 1 from information_schema.columns
+     where table_name = 'Debt' and column_name = 'transferId')           as "ربط الديون",
+  (select count(*) = 1 from pg_proc
+     where proname = 'transfer_between_wallets')                         as "التحويل الداخلي";
