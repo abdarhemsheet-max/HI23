@@ -24,6 +24,7 @@ import {
 } from '../validate';
 
 import { EXPENSE_CATEGORIES } from '@/shared/types';
+import { financeSchemaReadySync } from './capabilities';
 
 type Body = Record<string, unknown>;
 type Row = Record<string, unknown>;
@@ -42,6 +43,8 @@ export interface ResourceDef {
   select?: string; // افتراضياً '*'
   orderBy?: OrderSpec[];
   upsertOn?: string; // اسم عمود فريد لكل مستخدم — يُستخدم مع weeklyFocus
+  /** جدول قد لا يوجد على قاعدة لم تُرحَّل بعد — تُعاد قائمة فارغة بدل خطأ */
+  optionalTable?: boolean;
   create?: (b: Body) => Row;
   update?: (b: Body) => Row;
   /** تحويل ما بعد الجلب — للحالات التي لا تُترجم مباشرة لصياغة PostgREST */
@@ -111,8 +114,11 @@ export const RESOURCES: Record<string, ResourceDef> = {
       type: oneOf(b, 'type', ['cash', 'bank'] as const, 'نوع المحفظة'),
       balance: optNum(b, 'balance', 0),
       // محفظة أمانة = مال شخص آخر لديّ، لا يدخل في صافي ثروتي
-      isPersonal: optBool(b, 'isPersonal') ?? true,
-      ownerName: optStr(b, 'ownerName', 100),
+      // (تُحذف الحقول الجديدة إن كانت القاعدة لم تُرحَّل بعد)
+      ...(financeSchemaReadySync() && {
+        isPersonal: optBool(b, 'isPersonal') ?? true,
+        ownerName: optStr(b, 'ownerName', 100),
+      }),
     }),
     update: (b) => ({
       ...(b.name !== undefined && { name: reqStr(b, 'name', 'اسم المحفظة', 100) }),
@@ -187,6 +193,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
   budgets: {
     table: 'Budget',
     orderBy: [{ column: 'createdAt', ascending: true }],
+    optionalTable: true,
     // سقف واحد لكل تصنيف — إعادة الضبط تحدّث الصف بدل أن تفشل
     upsertOn: 'categoryKey',
     create: (b) => ({
@@ -533,7 +540,10 @@ export async function listResource(name: string): Promise<Row[]> {
   for (const o of def.orderBy ?? []) {
     q = q.order(o.column, { ascending: o.ascending ?? true, ...(o.foreignTable ? { foreignTable: o.foreignTable } : {}) });
   }
-  const rows = unwrap(await q) as unknown as Row[];
+  const res = await q;
+  // جدول اختياري غير موجود بعد (قاعدة لم تُرحَّل) — قائمة فارغة بلا خطأ
+  if (def.optionalTable && (res.error as { code?: string } | null)?.code === 'PGRST205') return [];
+  const rows = unwrap(res) as unknown as Row[];
   return def.postProcess ? await def.postProcess(rows) : rows;
 }
 
