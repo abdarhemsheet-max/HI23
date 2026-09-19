@@ -41,7 +41,6 @@ import StatCard from '@/frontend/components/ui/StatCard';
 import Modal from '@/frontend/components/ui/Modal';
 import EmptyState from '@/frontend/components/ui/EmptyState';
 import ProgressBar from '@/frontend/components/ui/ProgressBar';
-import { financeSchemaReady } from '@/backend/services/capabilities';
 import { useConfirm } from '@/frontend/hooks/useConfirm';
 import { usePrivacyMode } from '@/frontend/hooks/usePrivacyMode';
 import PrivacyToggleButton from '@/frontend/components/ui/PrivacyToggleButton';
@@ -114,11 +113,8 @@ export default function FinancePage() {
   const [assets, setAssets] = useState<Asset[]>(() => getCached<Asset[]>('/api/crud/assets') ?? []);
   const [savings, setSavings] = useState<SavingsGoal[]>(() => getCached<SavingsGoal[]>('/api/crud/savings') ?? []);
   const [budgets, setBudgets] = useState<Budget[]>(() => getCached<Budget[]>('/api/crud/budgets') ?? []);
-  // هل شُغّل ترحيل المالية على القاعدة؟ الميزات الجديدة تعتمد عليه
-  const [schemaReady, setSchemaReady] = useState(true);
 
   const load = useCallback(async () => {
-    setSchemaReady(await financeSchemaReady());
     const [w, t, d, s, a, g, bu] = await Promise.all([
       api<Wallet[]>('/api/crud/wallets'),
       api<Transaction[]>('/api/transactions'),
@@ -536,26 +532,6 @@ export default function FinancePage() {
         ))}
       </div>
 
-      {!schemaReady && (
-        <GlassCard className="border-amber-500/30">
-          <div className="flex flex-wrap items-start gap-3">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-300" />
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-amber-200">قاعدة البيانات لم تُحدَّث بعد</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                القسم يعمل بصيغته السابقة وكل بياناتك سليمة، لكن الميزات الجديدة معطّلة:
-                محافظ الأمانات، التحويل الداخلي، السقوف الشهرية، والدخل المتأخر. لتفعيلها
-                شغّل ملف
-                <span className="mx-1 rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px] text-slate-300">
-                  supabase/migrations/20260818090000_finance_real_life.sql
-                </span>
-                في Supabase ← SQL Editor، ثم أعد تحميل الصفحة.
-              </p>
-            </div>
-          </div>
-        </GlassCard>
-      )}
-
       {/* ======================= نظرة عامة ======================= */}
       {tab === 'overview' && (
         <>
@@ -615,7 +591,7 @@ export default function FinancePage() {
                 نثريات اليوم: <b className={cn('text-amber-300', moneyBlur)}>{fmtMoney(todayPetty)}</b>
               </span>
             </div>
-            {!schemaReady ? null : pettyLimit > 0 ? (
+            {pettyLimit > 0 ? (
               <div className="mb-3">
                 <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px]">
                   <span className="text-slate-500">
@@ -689,7 +665,6 @@ export default function FinancePage() {
             )}
           </GlassCard>
 
-          {schemaReady && (
           <GlassCard>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h3 className="section-title flex items-center gap-2">
@@ -727,7 +702,6 @@ export default function FinancePage() {
               </div>
             )}
           </GlassCard>
-          )}
 
           {pendingTxns.length > 0 && (
             <GlassCard className={lateTxns.length > 0 ? 'border-rose-500/25' : 'border-amber-500/20'}>
@@ -841,14 +815,8 @@ export default function FinancePage() {
           <div className="flex justify-end">
             <button
               className="btn-ghost"
-              disabled={wallets.length < 2 || !schemaReady}
-              title={
-                !schemaReady
-                  ? 'يحتاج تشغيل ملف الترحيل على قاعدة البيانات'
-                  : wallets.length < 2
-                    ? 'تحتاج محفظتين على الأقل'
-                    : 'نقل مبلغ بين محفظتين'
-              }
+              disabled={wallets.length < 2}
+              title={wallets.length < 2 ? 'تحتاج محفظتين على الأقل' : 'نقل مبلغ بين محفظتين'}
               onClick={() => { setTransferMode('transfer'); setModal('transfer'); }}
             >
               <ArrowLeftRight size={16} /> تحويل داخلي
@@ -1122,7 +1090,6 @@ export default function FinancePage() {
               <input name="amount" type="number" step="0.01" min="0.01" className="input" required placeholder="0.00" />
             </div>
           </div>
-          {schemaReady && (
           <div>
             <label className="label">التصنيف</label>
             <div className="flex flex-wrap gap-1.5">
@@ -1144,15 +1111,14 @@ export default function FinancePage() {
             </div>
             <input type="hidden" name="categoryKey" value={txnCategory} />
           </div>
-          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">{schemaReady ? 'وصف التصنيف (اختياري)' : 'التصنيف'}</label>
-              <input name="category" className="input" placeholder={schemaReady ? TX_CATEGORY_LABELS[txnCategory] : 'راتب، تصميم، طعام…'} />
+              <label className="label">وصف التصنيف (اختياري)</label>
+              <input name="category" className="input" placeholder={TX_CATEGORY_LABELS[txnCategory]} />
             </div>
             <div>
-              <label className="label">{txnKind === 'pending' && schemaReady ? 'متى تتوقّع وصوله؟' : 'التاريخ'}</label>
-              {txnKind === 'pending' && schemaReady ? (
+              <label className="label">{txnKind === 'pending' ? 'متى تتوقّع وصوله؟' : 'التاريخ'}</label>
+              {txnKind === 'pending' ? (
                 <input name="expectedDate" type="date" className="input" required defaultValue={todayStr()} />
               ) : (
                 <input name="date" type="date" className="input" defaultValue={todayStr()} />
@@ -1197,7 +1163,6 @@ export default function FinancePage() {
               <input name="balance" type="number" step="0.01" min="0" className="input" defaultValue={0} />
             </div>
           </div>
-          {schemaReady && (
           <div>
             <label className="label">ملكية المال</label>
             <select
@@ -1210,8 +1175,7 @@ export default function FinancePage() {
               <option value="trust">أمانة — مال شخص آخر لديّ 🤝</option>
             </select>
           </div>
-          )}
-          {schemaReady && walletOwnership === 'trust' && (
+          {walletOwnership === 'trust' && (
             <div>
               <label className="label">صاحب المال</label>
               <input name="ownerName" className="input" required placeholder="الوالد…" />
@@ -1581,7 +1545,6 @@ export default function FinancePage() {
                   ))}
                 </select>
               </div>
-              {schemaReady && (
               <div>
                 <label className="label">تاريخ الاستلام الفعلي</label>
                 <input name="receivedDate" type="date" className="input" defaultValue={todayStr()} />
@@ -1589,8 +1552,6 @@ export default function FinancePage() {
                   يُحتسب المبلغ في شهر استلامه لا في شهر توقّعه — يهمّ إن تأخّر المرتب.
                 </p>
               </div>
-              )}
-              {schemaReady && (
               <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
                 <input
                   name="repeatNext"
@@ -1600,7 +1561,6 @@ export default function FinancePage() {
                 />
                 أنشئ توقّع الشهر القادم بنفس القيمة تلقائياً
               </label>
-              )}
               <button className="btn-primary">
                 <CheckCircle2 size={15} /> تأكيد الوصول
               </button>

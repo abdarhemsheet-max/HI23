@@ -2,7 +2,6 @@
 import { supabase } from '../config/supabaseClient';
 import { unwrap } from './errors';
 import { ValidationError, oneOf, posNum, optStr, optDate, optId, optBool, reqStr } from '../validate';
-import { financeSchemaReady } from './capabilities';
 import type { TxCategoryKey } from '@/shared/types';
 
 type Body = Record<string, unknown>;
@@ -47,21 +46,19 @@ export async function createTransaction(b: Body) {
     ? 'general'
     : oneOf(b, 'categoryKey', MANUAL_CATEGORY_KEYS, 'تصنيف الحركة');
 
-  const base = {
-    p_type: type,
-    p_status: status,
-    p_amount: amount,
-    p_category: optStr(b, 'category') ?? 'عام',
-    p_description: optStr(b, 'description'),
-    p_date: optDate(b, 'date') ?? new Date(),
-    p_wallet_id: walletId,
-  };
-  // قاعدة لم تُرحَّل بعد: تُستدعى الصيغة القديمة فتبقى الحركات تعمل
-  const args = (await financeSchemaReady())
-    ? { ...base, p_category_key: categoryKey, p_expected_date: optDate(b, 'expectedDate') }
-    : base;
-
-  return unwrap(await supabase.rpc('create_transaction', args));
+  return unwrap(
+    await supabase.rpc('create_transaction', {
+      p_type: type,
+      p_status: status,
+      p_amount: amount,
+      p_category: optStr(b, 'category') ?? 'عام',
+      p_category_key: categoryKey,
+      p_description: optStr(b, 'description'),
+      p_date: optDate(b, 'date') ?? new Date(),
+      p_wallet_id: walletId,
+      p_expected_date: optDate(b, 'expectedDate'),
+    })
+  );
 }
 
 /**
@@ -70,16 +67,14 @@ export async function createTransaction(b: Body) {
  * توقّع الشهر القادم بنفس القيمة في المعاملة نفسها.
  */
 export async function confirmPendingTransaction(id: string, b: Body) {
-  const base = { p_txn_id: id, p_wallet_id: optId(b, 'walletId') };
-  const args = (await financeSchemaReady())
-    ? {
-        ...base,
-        p_received_date: optDate(b, 'receivedDate') ?? new Date(),
-        p_repeat_next: optBool(b, 'repeatNext') ?? false,
-      }
-    : base;
-
-  return unwrap(await supabase.rpc('confirm_pending_transaction', args));
+  return unwrap(
+    await supabase.rpc('confirm_pending_transaction', {
+      p_txn_id: id,
+      p_wallet_id: optId(b, 'walletId'),
+      p_received_date: optDate(b, 'receivedDate') ?? new Date(),
+      p_repeat_next: optBool(b, 'repeatNext') ?? false,
+    })
+  );
 }
 
 export async function deleteTransaction(id: string) {
@@ -93,9 +88,6 @@ export async function deleteTransaction(id: string) {
  *   mode = 'gift'     → منحة: الطرف الداخل يُحتسب دخلاً بتصنيف 'allowance'
  */
 export async function transferBetweenWallets(b: Body) {
-  if (!(await financeSchemaReady())) {
-    throw new ValidationError('التحويل الداخلي يحتاج تشغيل ملف الترحيل على قاعدة البيانات أولاً');
-  }
   const fromWalletId = reqStr(b, 'fromWalletId', 'المحفظة المصدر', 100);
   const toWalletId = reqStr(b, 'toWalletId', 'المحفظة الوجهة', 100);
   if (fromWalletId === toWalletId) {
@@ -122,10 +114,13 @@ export async function settleDebt(debtId: string, b: Body) {
   if (toWalletId && toWalletId === walletId) {
     throw new ValidationError('لا يمكن السداد إلى نفس المحفظة');
   }
-  const base = { p_debt_id: debtId, p_wallet_id: walletId };
-  const args = (await financeSchemaReady()) ? { ...base, p_to_wallet_id: toWalletId } : base;
-
-  return unwrap(await supabase.rpc('settle_debt', args));
+  return unwrap(
+    await supabase.rpc('settle_debt', {
+      p_debt_id: debtId,
+      p_wallet_id: walletId,
+      p_to_wallet_id: toWalletId,
+    })
+  );
 }
 
 export async function paySubscription(subId: string, b: Body) {
